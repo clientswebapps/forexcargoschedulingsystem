@@ -903,3 +903,11 @@ tbody td {
   .page-actions { width: 100%; }
   .page-actions .btn { flex: 1; justify-content: center; }
 }
+
+/* ── SVG Chart Hover Styles ──────────────────────────────── */
+.bar-group rect {
+  transition: filter 0.25s ease;
+}
+.bar-group:hover rect {
+  filter: brightness(1.18);
+}

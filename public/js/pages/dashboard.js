@@ -14,6 +14,25 @@ export async function renderDashboard(container, appState) {
       </div>
     </div>
     <div class="stats-grid" id="dash-stats">${loadingHTML()}</div>
+    
+    <!-- Analytics Chart -->
+    <div class="card" style="margin-bottom:20px;" id="dash-chart-card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;padding: 14px 20px;">
+        <div>
+          <div class="card-title">Schedule Volume Analytics</div>
+          <div class="card-subtitle">Overview of schedule counts over time</div>
+        </div>
+        <div class="tabs" style="margin-bottom:0;border-bottom:none;display:flex;gap:4px;">
+          <button class="tab-btn active" id="chart-tab-daily" style="padding:6px 12px;font-size:0.75rem;">Daily</button>
+          <button class="tab-btn" id="chart-tab-weekly" style="padding:6px 12px;font-size:0.75rem;">Weekly</button>
+          <button class="tab-btn" id="chart-tab-monthly" style="padding:6px 12px;font-size:0.75rem;">Monthly</button>
+        </div>
+      </div>
+      <div class="card-body" id="dash-chart" style="min-height:180px;display:flex;align-items:center;justify-content:center;padding:20px 24px;">
+        ${loadingHTML('Loading analytics…')}
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap;" id="dash-grid">
       <div class="card" id="dash-upcoming-card">
         <div class="card-header">
@@ -175,6 +194,105 @@ export async function renderDashboard(container, appState) {
     });
     unsubs.push(unsubNotif);
 
+    // 4. One-time fetch for statistics chart
+    (async () => {
+      try {
+        const chartStartDate = new Date();
+        chartStartDate.setMonth(chartStartDate.getMonth() - 6);
+        chartStartDate.setHours(0,0,0,0);
+        const dateFromStr = `${chartStartDate.getFullYear()}-${pad(chartStartDate.getMonth() + 1)}-${pad(chartStartDate.getDate())}`;
+
+        let bookingsList = [];
+        if (role === 'salesperson') {
+          bookingsList = await Bookings.getMine(uid, { dateFrom: dateFromStr });
+        } else {
+          bookingsList = await Bookings.getAll({ dateFrom: dateFromStr });
+        }
+
+        // Daily (last 7 days)
+        const dailyData = [];
+        const dailyLabels = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+          const count = bookingsList.filter(b => {
+            const bDate = b.scheduledDate && b.scheduledDate.toDate ? b.scheduledDate.toDate() : new Date(b.scheduledDate);
+            const bDateStr = `${bDate.getFullYear()}-${pad(bDate.getMonth() + 1)}-${pad(bDate.getDate())}`;
+            return bDateStr === dateStr;
+          }).length;
+          dailyData.push(count);
+          dailyLabels.push(d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }));
+        }
+
+        // Weekly (last 4 weeks)
+        const weeklyData = [];
+        const weeklyLabels = [];
+        for (let i = 3; i >= 0; i--) {
+          const start = new Date();
+          start.setDate(start.getDate() - (i + 1) * 7 + 1);
+          start.setHours(0,0,0,0);
+          const end = new Date();
+          end.setDate(end.getDate() - i * 7);
+          end.setHours(23,59,59,999);
+          const count = bookingsList.filter(b => {
+            const bDate = b.scheduledDate && b.scheduledDate.toDate ? b.scheduledDate.toDate() : new Date(b.scheduledDate);
+            return bDate >= start && bDate <= end;
+          }).length;
+          weeklyData.push(count);
+          const startLabel = start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          const endLabel = end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          weeklyLabels.push(`${startLabel} - ${endLabel}`);
+        }
+
+        // Monthly (last 6 months)
+        const monthlyData = [];
+        const monthlyLabels = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date();
+          d.setMonth(d.getMonth() - i);
+          const year = d.getFullYear();
+          const month = d.getMonth();
+          const count = bookingsList.filter(b => {
+            const bDate = b.scheduledDate && b.scheduledDate.toDate ? b.scheduledDate.toDate() : new Date(b.scheduledDate);
+            return bDate.getFullYear() === year && bDate.getMonth() === month;
+          }).length;
+          monthlyData.push(count);
+          monthlyLabels.push(d.toLocaleDateString('en-GB', { month: 'short' }));
+        }
+
+        function updateChart(type) {
+          const chartEl = document.getElementById('dash-chart');
+          if (!chartEl) return;
+          ['daily', 'weekly', 'monthly'].forEach(t => {
+            const btn = document.getElementById(`chart-tab-${t}`);
+            if (btn) {
+              if (t === type) btn.classList.add('active');
+              else btn.classList.remove('active');
+            }
+          });
+          if (type === 'daily') {
+            chartEl.innerHTML = generateBarChartSVG(dailyData, dailyLabels);
+          } else if (type === 'weekly') {
+            chartEl.innerHTML = generateBarChartSVG(weeklyData, weeklyLabels);
+          } else {
+            chartEl.innerHTML = generateBarChartSVG(monthlyData, monthlyLabels);
+          }
+        }
+
+        document.getElementById('chart-tab-daily')?.addEventListener('click', () => updateChart('daily'));
+        document.getElementById('chart-tab-weekly')?.addEventListener('click', () => updateChart('weekly'));
+        document.getElementById('chart-tab-monthly')?.addEventListener('click', () => updateChart('monthly'));
+
+        updateChart('daily');
+
+      } catch (err) {
+        console.error('Chart analytics load error:', err);
+        const chartEl = document.getElementById('dash-chart');
+        if (chartEl) chartEl.innerHTML = errorHTML('Failed to load chart analytics.');
+      }
+    })();
+
   } catch (err) {
     console.error('Dashboard error:', err);
     document.getElementById('dash-stats').innerHTML = errorHTML('Failed to load dashboard data.');
@@ -188,4 +306,47 @@ export async function renderDashboard(container, appState) {
     unsubs = [];
     window.removeEventListener('resize', setGrid);
   };
+}
+
+function generateBarChartSVG(data, labels) {
+  const width = 500;
+  const height = 180;
+  const maxVal = Math.max(...data, 4);
+  const barWidth = data.length > 7 ? 20 : 32;
+  const chartHeight = height - 40;
+  const totalBarArea = width - 80;
+  const step = data.length > 1 ? totalBarArea / (data.length - 1) : totalBarArea;
+
+  const bars = data.map((val, i) => {
+    const barHeight = (val / maxVal) * chartHeight;
+    const x = data.length > 1 ? (i * step + 40 - barWidth / 2) : (width / 2 - barWidth / 2);
+    const y = chartHeight - barHeight + 15;
+    return `
+      <g class="bar-group">
+        <!-- Bar background for hover zone -->
+        <rect x="${x}" y="15" width="${barWidth}" height="${chartHeight}" fill="transparent" />
+        <!-- Actual colored bar -->
+        <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="url(#barGradient)" style="transition: all 0.3s ease;">
+          <title>${val} schedule(s)</title>
+        </rect>
+        <text x="${x + barWidth/2}" y="${y - 6}" text-anchor="middle" font-size="0.75rem" font-weight="600" fill="var(--navy)">${val}</text>
+        <text x="${x + barWidth/2}" y="${height - 8}" text-anchor="middle" font-size="0.62rem" font-weight="500" fill="var(--text-secondary)">${labels[i]}</text>
+      </g>
+    `;
+  }).join('');
+
+  return `
+    <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="overflow:visible;">
+      <defs>
+        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#42A5F5" />
+          <stop offset="100%" stop-color="#0D47A1" />
+        </linearGradient>
+      </defs>
+      <line x1="20" y1="${chartHeight + 15}" x2="${width - 20}" y2="${chartHeight + 15}" stroke="var(--border-gray)" stroke-width="1.5" />
+      <line x1="20" y1="${chartHeight/2 + 15}" x2="${width - 20}" y2="${chartHeight/2 + 15}" stroke="var(--border-gray)" stroke-dasharray="3,3" />
+      <line x1="20" y1="15" x2="${width - 20}" y2="15" stroke="var(--border-gray)" stroke-dasharray="3,3" />
+      ${bars}
+    </svg>
+  `;
 }
