@@ -129,11 +129,7 @@ ul { list-style: none; }
 .loading-content { text-align: center; color: var(--text-white); }
 .loading-logo {
   width: 64px; height: 64px;
-  background: rgba(255,255,255,0.15);
-  border: 2px solid rgba(255,255,255,0.3);
-  border-radius: var(--radius-lg);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem; font-weight: 700; letter-spacing: -1px;
   margin: 0 auto 24px;
 }
 .loading-spinner {
@@ -181,12 +177,8 @@ ul { list-style: none; }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-icon {
   width: 36px; height: 36px;
-  background: rgba(255,255,255,0.15);
-  border: 1.5px solid rgba(255,255,255,0.25);
-  border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.75rem; font-weight: 700; color: #fff;
-  letter-spacing: -0.5px; flex-shrink: 0;
+  flex-shrink: 0;
 }
 .brand-name {
   font-size: 0.9rem; font-weight: 600; color: var(--text-white);
@@ -703,11 +695,8 @@ tbody td {
 }
 .login-logo {
   width: 60px; height: 60px;
-  background: linear-gradient(135deg, var(--navy), var(--blue));
-  border-radius: var(--radius-lg);
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 14px;
-  font-size: 1.1rem; font-weight: 700; color: #fff;
 }
 .login-title { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
 .login-subtitle { font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; }

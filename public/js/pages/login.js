@@ -8,7 +8,9 @@ export function renderLogin(container, initialError) {
   container.innerHTML = `
     <div class="login-card">
       <div class="login-brand">
-        <div class="login-logo">FC</div>
+        <div class="login-logo">
+          <img src="/images/logo.png" alt="Forex Cargo Logo" style="width:100%;height:100%;object-fit:contain;">
+        </div>
         <div class="login-title">Forex Cargo</div>
         <div class="login-subtitle">Scheduling &amp; Operations System</div>
       </div>
