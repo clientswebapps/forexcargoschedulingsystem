@@ -87,8 +87,9 @@ service cloud.firestore {
                            && request.resource.data.status in ['Pending','Completed'])
                         ));
 
-      // Delete: Admin and Office Staff
-      allow delete: if isAdminOrOffice();
+      // Delete: Admin, Office Staff, or Salesperson who created the booking
+      allow delete: if isAdminOrOffice()
+                    || (isSalesperson() && resource.data.bookedById == uid());
     }
 
     // ── NOTIFICATIONS collection ─────────────────────────────

@@ -3,8 +3,8 @@
  * Shows only schedules where salespersonId === current user's UID
  */
 'use strict';
-import { Bookings } from '../db.js';
-import { formatDateTime, formatDate, formatBookingDateTime, statusBadge, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange } from '../utils.js';
+import { Bookings, ActivityLog } from '../db.js';
+import { formatDateTime, formatDate, formatBookingDateTime, statusBadge, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange, showToast } from '../utils.js';
 import { openScheduleModal } from './booking-form.js';
 
 export async function renderMySchedule(container, appState) {
@@ -157,10 +157,12 @@ export async function renderMySchedule(container, appState) {
         <table>
           <thead><tr>
             <th>Date</th><th>Time</th><th>Customer</th><th>Contact</th>
-            <th>Service</th><th>Created By</th><th>Status</th><th></th>
+            <th>Service</th><th>Created By</th><th>Status</th><th style="text-align:right"></th>
           </tr></thead>
           <tbody>
-            ${list.map(b => `
+            ${list.map(b => {
+              const isOwnBooking = b.bookedById === uid;
+              return `
               <tr class="clickable" onclick="window._navigate('/schedules/view/${b.id}')">
                 <td class="text-sm" style="white-space:nowrap">${formatDate(b.scheduledDate)}</td>
                 <td class="text-sm" style="white-space:nowrap">${escapeHtml(b.scheduledTime || '')} <span class="badge badge-gray text-xs" style="margin-left: 2px;">${escapeHtml(b.scheduledPeriod || 'Anytime')}</span></td>
@@ -171,12 +173,16 @@ export async function renderMySchedule(container, appState) {
                     <div class="text-xs text-secondary mt-1">${escapeHtml((b.serviceDetails||'').slice(0,30))}${(b.serviceDetails||'').length>30?'…':''}</div></td>
                 <td class="text-sm text-secondary">${escapeHtml(b.bookedByName || '—')}</td>
                 <td>${statusBadge(b.status)}</td>
-                <td>
-                  <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();window._navigate('/schedules/view/${b.id}')">
-                    View
-                  </button>
+                <td style="text-align:right" onclick="event.stopPropagation()">
+                  ${isOwnBooking ? `
+                    <div class="row-actions-stacked">
+                      <button class="btn btn-secondary btn-sm" onclick="window._openEditSchedule('${b.id}')">Edit</button>
+                      <button class="btn btn-danger-outline btn-sm" onclick="window._deleteMySchedule(this, '${b.id}', '${escapeHtml(b.snapshot_name)}')">Delete</button>
+                    </div>
+                  ` : ''}
                 </td>
-              </tr>`).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>`;
@@ -231,6 +237,37 @@ export async function renderMySchedule(container, appState) {
     if (rangeType) params.set('rangeType', rangeType);
     window._navigate && window._navigate('/print?' + params.toString());
   });
+
+  // Action handlers for edit/delete
+  window._openEditSchedule = (id) => {
+    openScheduleModal(appState, id);
+  };
+
+  window._deleteMySchedule = async (btnEl, id, customerName) => {
+    if (!confirm(`Are you sure you want to delete the schedule for "${customerName}"?\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    btnEl.disabled = true;
+    btnEl.classList.add('btn-loading');
+
+    try {
+      await Bookings.delete(id);
+      try {
+        await ActivityLog.write({
+          bookingId: id,
+          action: 'BOOKING_DELETED',
+          details: { customer: customerName }
+        });
+      } catch(_) {}
+      showToast('Schedule deleted successfully.', 'success');
+    } catch (err) {
+      console.error('Failed to delete schedule:', err);
+      showToast('Failed to delete schedule: ' + (err.message || ''), 'error');
+      btnEl.disabled = false;
+      btnEl.classList.remove('btn-loading');
+    }
+  };
 
   load();
 
