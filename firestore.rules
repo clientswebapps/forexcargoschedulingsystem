@@ -84,7 +84,7 @@ service cloud.firestore {
                           ||
                           (resource.data.salespersonId == uid()
                            && onlyUpdating(['completionNotes','status','updatedAt','updatedById'])
-                           && request.resource.data.status in ['Pending','Completed'])
+                           && request.resource.data.status in ['Pending','Completed','Cancelled'])
                         ));
 
       // Delete: Admin, Office Staff, or Salesperson who created the booking

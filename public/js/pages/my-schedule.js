@@ -172,7 +172,16 @@ export async function renderMySchedule(container, appState) {
                 <td>${serviceBadge(b.serviceType)}
                     <div class="text-xs text-secondary mt-1">${escapeHtml((b.serviceDetails||'').slice(0,30))}${(b.serviceDetails||'').length>30?'…':''}</div></td>
                 <td class="text-sm text-secondary">${escapeHtml(b.bookedByName || '—')}</td>
-                <td>${statusBadge(b.status)}</td>
+                <td onclick="event.stopPropagation()">
+                  <select class="status-select status-select-${(b.status||'pending').toLowerCase()}"
+                    data-id="${b.id}"
+                    data-current="${b.status}"
+                    onchange="window._updateScheduleStatus(this, '${b.id}', '${b.status}')">
+                    <option value="Pending" ${b.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                    <option value="Completed" ${b.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                    <option value="Cancelled" ${b.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                  </select>
+                </td>
                 <td style="text-align:right" onclick="event.stopPropagation()">
                   ${isOwnBooking ? `
                     <div class="row-actions-stacked">
@@ -237,6 +246,34 @@ export async function renderMySchedule(container, appState) {
     if (rangeType) params.set('rangeType', rangeType);
     window._navigate && window._navigate('/print?' + params.toString());
   });
+
+  // Inline status change handler
+  window._updateScheduleStatus = async (selectEl, id, prevStatus) => {
+    const newStatus = selectEl.value;
+    if (newStatus === prevStatus) return;
+
+    selectEl.disabled = true;
+
+    try {
+      await Bookings.updateStatus(id, newStatus);
+      try {
+        await ActivityLog.write({
+          bookingId: id,
+          action: 'STATUS_CHANGED',
+          details: { from: prevStatus, to: newStatus }
+        });
+      } catch (_) {}
+      selectEl.className = `status-select status-select-${newStatus.toLowerCase()}`;
+      showToast(`Status updated to ${newStatus}.`, 'success');
+    } catch (err) {
+      console.error('Failed to update status:', err);
+      selectEl.value = prevStatus;
+      selectEl.className = `status-select status-select-${prevStatus.toLowerCase()}`;
+      showToast('Failed to update status: ' + (err.message || ''), 'error');
+    } finally {
+      selectEl.disabled = false;
+    }
+  };
 
   // Action handlers for edit/delete
   window._openEditSchedule = (id) => {
