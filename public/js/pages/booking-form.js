@@ -84,13 +84,15 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
             <div class="form-group">
               <label class="form-label required" for="bf-name">Customer Name</label>
               <input type="text" id="bf-name" class="form-control" placeholder="Full name"
-                value="${escapeHtml(b?.snapshot_name || '')}">
+                value="${escapeHtml(b?.snapshot_name || '')}"
+                ${isSales && isEdit ? 'disabled' : ''}>
             </div>
             <div class="form-group">
               <label class="form-label required" for="bf-phone">Contact Number</label>
               <div class="autocomplete-wrapper">
                 <input type="tel" id="bf-phone" class="form-control" placeholder="+973 XXXX XXXX" autocomplete="off"
-                  value="${escapeHtml(b?.snapshot_contactNumber || '')}">
+                  value="${escapeHtml(b?.snapshot_contactNumber || '')}"
+                  ${isSales && isEdit ? 'disabled' : ''}>
                 <div class="autocomplete-dropdown hidden" id="phone-dropdown"></div>
               </div>
             </div>
@@ -98,7 +100,8 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label" for="bf-address">Address</label>
             <input type="text" id="bf-address" class="form-control" placeholder="Street, Area, City"
-              value="${escapeHtml(b?.snapshot_address || '')}">
+              value="${escapeHtml(b?.snapshot_address || '')}"
+              ${isSales && isEdit ? 'disabled' : ''}>
           </div>
           <input type="hidden" id="bf-customer-id" value="${b?.customerId || ''}">
         </div>
@@ -136,15 +139,11 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
               </div>
             </div>
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0">
             <label class="form-label" for="bf-details">Service Details / Description</label>
             <textarea id="bf-details" class="form-control" rows="2"
-              placeholder="Describe the service requirements…">${escapeHtml(b?.serviceDetails || '')}</textarea>
-          </div>
-          <div class="form-group" style="margin-bottom:0">
-            <label class="form-label" for="bf-notes">Notes &amp; Preferences</label>
-            <textarea id="bf-notes" class="form-control" rows="2"
-              placeholder="Special instructions, access notes…">${escapeHtml(b?.notes || '')}</textarea>
+              placeholder="Describe the service requirements…"
+              ${isSales && isEdit ? 'disabled' : ''}>${escapeHtml(b?.serviceDetails || '')}</textarea>
           </div>
         </div>
       </div>
@@ -282,7 +281,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     const timeVal  = !isSales || !isEdit ? document.getElementById('bf-time').value.trim() : '';
     const periodVal = !isSales || !isEdit ? document.getElementById('bf-period').value : 'Anytime';
     const details  = document.getElementById('bf-details').value.trim();
-    const notes    = document.getElementById('bf-notes').value.trim();
+    const notes    = b?.notes || '';
     const salesId  = document.getElementById('bf-salesperson').value;
     const statusVal = isEdit ? document.getElementById('bf-status').value : 'Pending';
     const completion = isEdit ? document.getElementById('bf-completion')?.value.trim() || '' : '';
@@ -339,23 +338,29 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
 
       if (isEdit) {
         const prevSalesId = b.salespersonId;
-        const updates = {
-          snapshot_name:          name,
-          snapshot_contactNumber: phone,
-          snapshot_address:       address,
-          customerId:             finalCustomerId || null,
-          serviceDetails:         details,
-          notes,
-          completionNotes:        completion,
-          status:                 statusVal,
-        };
-        if (!isSales) {
-          updates.serviceType    = typeVal;
-          updates.scheduledDate  = scheduledDate;
-          updates.scheduledTime  = timeVal;
-          updates.scheduledPeriod = periodVal;
-          updates.salespersonId  = salesId;
-          updates.salespersonName = salesName;
+        let updates;
+        if (isSales) {
+          updates = {
+            status:          statusVal,
+            completionNotes: completion,
+          };
+        } else {
+          updates = {
+            snapshot_name:          name,
+            snapshot_contactNumber: phone,
+            snapshot_address:       address,
+            customerId:             finalCustomerId || null,
+            serviceDetails:         details,
+            notes,
+            completionNotes:        completion,
+            status:                 statusVal,
+            serviceType:            typeVal,
+            scheduledDate:          scheduledDate,
+            scheduledTime:          timeVal,
+            scheduledPeriod:        periodVal,
+            salespersonId:          salesId,
+            salespersonName:        salesName,
+          };
         }
 
         await Bookings.update(bookingId, updates);
