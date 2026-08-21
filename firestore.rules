@@ -52,10 +52,11 @@ service cloud.firestore {
     }
 
     // ── CUSTOMERS collection ─────────────────────────────────
-    // - Admin and Office Staff: full read/write
-    // - Salesperson: no access
+    // - Any signed-in active user (Admin, Office Staff, Salesperson): read, create, update
+    // - Admin and Office Staff: delete
     match /customers/{customerId} {
-      allow read, write: if isAdminOrOffice();
+      allow read, create, update: if isSignedIn() && isActive();
+      allow delete: if isAdminOrOffice();
     }
 
     // ── BOOKINGS collection ──────────────────────────────────

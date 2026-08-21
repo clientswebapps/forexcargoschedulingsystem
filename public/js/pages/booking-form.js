@@ -225,7 +225,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     </div>`;
 
   // ── Customer Autocomplete ──────────────────────────
-  if (!isSales) {
+  if (!isSales || !isEdit || isSalesCreator) {
     const dropdown      = document.getElementById('phone-dropdown');
     const nameInput     = document.getElementById('bf-name');
     const phoneInput    = document.getElementById('bf-phone');
@@ -307,9 +307,9 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     const restore = btnLoading(saveBtn, 'Saving…');
 
     try {
-      // Find or create customer if not linked (Admin/Office only)
+      // Find or create customer if not linked
       let finalCustomerId = custId;
-      if (!isSales && !finalCustomerId && phone) {
+      if ((!isSales || !isEdit || isSalesCreator) && !finalCustomerId && phone) {
         const existingCusts = await Customers.searchByPhone(phone);
         if (existingCusts.length > 0) {
           const cleanSearch = phone.replace(/\D/g, '');
