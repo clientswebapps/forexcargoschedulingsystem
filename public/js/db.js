@@ -316,8 +316,14 @@ export const Bookings = {
     await db.collection('bookings').doc(id).delete();
   },
 
-  onSnapshot(id, callback) {
-    return db.collection('bookings').doc(id).onSnapshot(snap => callback(docData(snap)));
+  onSnapshot(id, callback, errorCallback) {
+    return db.collection('bookings').doc(id).onSnapshot(
+      snap => callback(docData(snap)),
+      err => {
+        console.error('Booking onSnapshot error:', err);
+        if (errorCallback) errorCallback(err);
+      }
+    );
   },
 };
 

@@ -56,7 +56,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
         container.querySelector('.modal-body').innerHTML = errorHTML('Schedule not found.');
         return;
       }
-      if (isSales && existingBooking.salespersonId !== uid) {
+      if (isSales && existingBooking.salespersonId !== uid && existingBooking.bookedById !== uid) {
         container.querySelector('.modal-body').innerHTML = errorHTML('You do not have permission to edit this schedule.');
         return;
       }

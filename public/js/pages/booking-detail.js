@@ -18,23 +18,36 @@ export async function renderBookingDetail(container, appState, bookingId) {
   let unsub = null;
 
   try {
-    logs = await ActivityLog.getForBooking(bookingId);
-
-    unsub = Bookings.onSnapshot(bookingId, (doc) => {
-      if (!doc) {
-        container.innerHTML = errorHTML('Schedule not found.');
-        return;
+    if (role !== 'salesperson') {
+      try {
+        logs = await ActivityLog.getForBooking(bookingId);
+      } catch (logErr) {
+        console.warn('Could not load activity log:', logErr);
       }
+    }
 
-      // Salesperson can only view their own (assigned or self-created)
-      if (role === 'salesperson' && doc.salespersonId !== uid && doc.bookedById !== uid) {
-        container.innerHTML = errorHTML('You do not have permission to view this schedule.');
-        return;
+    unsub = Bookings.onSnapshot(
+      bookingId,
+      (doc) => {
+        if (!doc) {
+          container.innerHTML = errorHTML('Schedule not found.');
+          return;
+        }
+
+        // Salesperson can only view their own (assigned or self-created)
+        if (role === 'salesperson' && doc.salespersonId !== uid && doc.bookedById !== uid) {
+          container.innerHTML = errorHTML('You do not have permission to view this schedule.');
+          return;
+        }
+
+        b = doc;
+        renderDetail();
+      },
+      (err) => {
+        console.error('Schedule details onSnapshot error:', err);
+        container.innerHTML = errorHTML('Failed to load schedule details: ' + (err.message || 'Permission denied'));
       }
-
-      b = doc;
-      renderDetail();
-    });
+    );
 
     const isSales = role === 'salesperson';
 
