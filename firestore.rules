@@ -1,0 +1,123 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ────────────────────────────────────
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function role() {
+      return userDoc().role;
+    }
+
+    function isActive() {
+      return userDoc().isActive == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && isActive() && role() == 'admin';
+    }
+
+    function isSalesperson() {
+      return isSignedIn() && isActive() && role() == 'salesperson';
+    }
+
+    function isAdminOrOffice() {
+      return isSignedIn() && isActive() && (role() == 'admin' || role() == 'office_staff');
+    }
+
+    // ── USERS collection ────────────────────────────────────
+    // - Admin: full read/write on all users
+    // - Any authenticated active user: read their own doc
+    // - Setup: a user can create their own doc (for initial setup via REST API)
+    // - No user can delete user docs
+    match /users/{userId} {
+      allow read: if isSignedIn() && (uid() == userId || isAdminOrOffice());
+      allow create: if isSignedIn() && (uid() == userId || isAdmin());
+      allow update: if isSignedIn() && (
+        (uid() == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isActive']))
+        || isAdmin()
+      );
+      allow delete: if false;
+    }
+
+    // ── CUSTOMERS collection ─────────────────────────────────
+    // - Admin and Office Staff: full read/write
+    // - Salesperson: no access
+    match /customers/{customerId} {
+      allow read, write: if isAdminOrOffice();
+    }
+
+    // ── BOOKINGS collection ──────────────────────────────────
+    match /bookings/{bookingId} {
+      // Read:
+      //   Admin/Office: all bookings
+      //   Salesperson: only their assigned bookings
+      allow read: if isAdminOrOffice()
+                  || (isSalesperson() && resource.data.salespersonId == uid());
+
+      // Create:
+      //   Admin/Office: any booking
+      //   Salesperson: only if assigning to themselves and booking themselves
+      allow create: if isAdminOrOffice()
+                    || (isSalesperson()
+                        && request.resource.data.salespersonId == uid()
+                        && request.resource.data.bookedById == uid());
+
+      // Update:
+      //   Admin/Office: any field
+      //   Salesperson: only completionNotes, status, updatedAt, updatedById on their own booking
+      //                AND status can only be set to Pending or Completed (not Cancelled)
+      allow update: if isAdminOrOffice()
+                    || (isSalesperson()
+                        && resource.data.salespersonId == uid()
+                        && onlyUpdating(['completionNotes','status','updatedAt','updatedById'])
+                        && request.resource.data.status in ['Pending','Completed']);
+
+      // Delete: Admin and Office Staff
+      allow delete: if isAdminOrOffice();
+    }
+
+    // ── NOTIFICATIONS collection ─────────────────────────────
+    // - Any signed-in active user: read/update their own notifications
+    // - Create: any signed-in active user (written by client during booking actions)
+    // - Delete: nobody
+    match /notifications/{notifId} {
+      allow read:   if isSignedIn() && isActive()
+                    && resource.data.recipientId == uid();
+      allow create: if isSignedIn() && isActive()
+                    && request.resource.data.keys().hasAll(['recipientId', 'type', 'message', 'read'])
+                    && request.resource.data.read == false;
+      allow update: if isSignedIn() && isActive()
+                    && resource.data.recipientId == uid()
+                    && onlyUpdating(['read']);
+      allow delete: if false;
+    }
+
+    // ── ACTIVITY LOG collection ──────────────────────────────
+    // - Admin and Office Staff: read all
+    // - Any signed-in active user: create (write audit entries)
+    // - No updates or deletes (append-only)
+    match /activityLog/{logId} {
+      allow read:   if isAdminOrOffice();
+      allow create: if isSignedIn() && isActive();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ── Helper: field-level update restriction ───────────────
+    function onlyUpdating(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
+  }
+}

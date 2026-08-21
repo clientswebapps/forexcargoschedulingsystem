@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Forex Cargo Bahrain — Internal Scheduling and Operations System">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Forex Cargo Schedule</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/print.css" media="print">
+
+  <!-- Firebase SDK (compat — adds `firebase` global synchronously) -->
+  <script src="/__/firebase/12.18.0/firebase-app-compat.js"></script>
+  <script src="/__/firebase/12.18.0/firebase-auth-compat.js"></script>
+  <script src="/__/firebase/12.18.0/firebase-firestore-compat.js"></script>
+  <!-- Firebase auto-init from Hosting (provides config automatically) -->
+  <script src="/__/firebase/init.js"></script>
+</head>
+<body>
+
+<!-- ── Loading Screen ──────────────────────────────────── -->
+<div id="loading-screen" class="loading-screen">
+  <div class="loading-content">
+    <div class="loading-logo">FC</div>
+    <div class="loading-spinner"></div>
+    <p>Loading system…</p>
+  </div>
+</div>
+
+<!-- ── Login Screen ────────────────────────────────────── -->
+<div id="login-screen" class="login-screen hidden"></div>
+
+<!-- ── App Shell ───────────────────────────────────────── -->
+<div id="app-shell" class="app-shell hidden">
+
+  <!-- Mobile sidebar overlay -->
+  <div id="sidebar-overlay" class="sidebar-overlay" style="display:none;"></div>
+
+  <!-- Sidebar -->
+  <nav id="sidebar" class="sidebar" aria-label="Main navigation">
+    <!-- Brand -->
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">FC</div>
+        <div>
+          <div class="brand-name">Forex Cargo</div>
+          <div class="brand-sub">Schedule System</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Current user -->
+    <div class="sidebar-user">
+      <div class="user-avatar" id="user-avatar">--</div>
+      <div class="user-info">
+        <div class="user-name" id="user-display-name">Loading…</div>
+        <div class="user-role-label" id="user-role-badge">…</div>
+      </div>
+    </div>
+
+    <!-- Nav menu -->
+    <ul class="nav-menu" id="nav-menu" role="list"></ul>
+
+    <!-- Footer / logout -->
+    <div class="sidebar-footer" id="sidebar-footer"></div>
+  </nav>
+
+  <!-- Main content wrapper -->
+  <div class="main-wrapper">
+
+    <!-- Topbar -->
+    <header class="topbar" role="banner">
+      <button id="mobile-menu-btn" class="mobile-menu-btn" aria-label="Open navigation menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="topbar-title" id="topbar-page-title">Dashboard</div>
+
+      <div class="topbar-actions">
+        <!-- Notifications -->
+        <button id="notifications-btn" class="icon-btn" aria-label="Notifications" title="Notifications">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="notif-badge hidden" id="notif-badge">0</span>
+        </button>
+
+        <!-- Logout -->
+        <button id="logout-btn" class="icon-btn" aria-label="Sign out" title="Sign out">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Content -->
+    <main id="page-content" class="page-content" role="main"></main>
+
+  </div><!-- /.main-wrapper -->
+</div><!-- /#app-shell -->
+
+<!-- ── Toast Container ─────────────────────────────────── -->
+<div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+<!-- ── Modal Container ─────────────────────────────────── -->
+<div id="modal-container"></div>
+
+<!-- ── App Entry Point (ES Module) ────────────────────── -->
+<script type="module" src="/js/app.js"></script>
+
+</body>
+</html>

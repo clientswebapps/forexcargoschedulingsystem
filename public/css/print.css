@@ -1,0 +1,180 @@
+/* ============================================================
+   FOREX CARGO — Print Styles
+   Activated only with @media print or window.print()
+   ============================================================ */
+
+/* Page settings — margin:0 at top level removes browser headers/footers reliably. Needs to be at top-level. */
+@page {
+  size: A4 landscape;
+  margin: 0;
+}
+
+@media print {
+  /* Reset */
+  *, *::before, *::after { box-sizing: border-box; }
+
+  /* Hide UI chrome */
+  .sidebar,
+  .topbar,
+  .sidebar-overlay,
+  .toast-container,
+  .modal-overlay,
+  .btn,
+  .filter-bar,
+  .page-header .page-actions,
+  #print-controls,
+  .no-print { display: none !important; }
+
+  /* Show print-only content */
+  .print-only { display: block !important; }
+
+  /* Full-width layout */
+  body { background: #fff; color: #000; font-family: 'Inter', Arial, sans-serif; font-size: 10pt; }
+  .app-shell { display: block; }
+  .main-wrapper { width: 100%; }
+  .page-content { padding: 0; }
+
+  /* Print header */
+  .print-header {
+    display: flex !important;
+    align-items: center; justify-content: space-between;
+    margin-bottom: 16pt;
+    padding-bottom: 10pt;
+    border-bottom: 2pt solid #0D47A1;
+  }
+  .print-header-left { flex: 1; }
+  .print-company-name {
+    font-size: 14pt; font-weight: 700; color: #0D47A1;
+    letter-spacing: -0.3px;
+  }
+  .print-schedule-title {
+    font-size: 10pt; color: #424242; margin-top: 2pt;
+  }
+  .print-header-right { text-align: right; font-size: 9pt; color: #616161; }
+  .print-date { font-size: 10pt; font-weight: 600; color: #212121; }
+
+  /* Print filters summary */
+  .print-filters {
+    font-size: 8pt; color: #616161;
+    margin-bottom: 10pt;
+    padding: 6pt 8pt;
+    background: #F5F5F5;
+    border-radius: 4pt;
+  }
+
+  /* Table */
+  .table-wrapper, table {
+    width: 100%;
+    border-collapse: collapse;
+    box-shadow: none;
+    border: 1pt solid #CCC;
+    border-radius: 0;
+    page-break-inside: auto;
+  }
+
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr { page-break-inside: avoid; page-break-after: auto; }
+
+  thead th {
+    background: #0D47A1 !important;
+    color: #fff !important;
+    padding: 7pt 8pt;
+    font-size: 8pt; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    border: 1pt solid #0A3880;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  tbody td {
+    padding: 7pt 8pt;
+    font-size: 9pt;
+    border: 1pt solid #DDD;
+    vertical-align: top;
+  }
+
+  tbody tr:nth-child(even) {
+    background: #F9F9F9;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Remarks column (blank for writing) */
+  .col-remarks {
+    min-width: 80pt;
+  }
+
+  /* Status badges in print */
+  .badge {
+    padding: 1pt 4pt;
+    border-radius: 2pt;
+    font-size: 7.5pt;
+    font-weight: 600;
+    border: 1pt solid currentColor;
+    background: none !important;
+  }
+  .badge-success { color: #2E7D32; border-color: #2E7D32; }
+  .badge-warning { color: #E65100; border-color: #E65100; }
+  .badge-danger  { color: #D32F2F; border-color: #D32F2F; }
+  .badge-info    { color: #1565C0; border-color: #1565C0; }
+  .badge-blue    { color: #1565C0; border-color: #1565C0; }
+  .badge-purple  { color: #7B1FA2; border-color: #7B1FA2; }
+  .badge-gray    { color: #424242; border-color: #424242; }
+
+  /* Print footer */
+  .print-footer {
+    margin-top: 12pt;
+    display: flex !important;
+    justify-content: space-between;
+    font-size: 7.5pt; color: #9E9E9E;
+    border-top: 1pt solid #DDD;
+    padding-top: 6pt;
+  }
+
+
+
+  body {
+    padding: 12mm 14mm;
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Reset layout constraints for page rendering */
+  html, .app-shell, .main-wrapper, .page-content, #page-content, #print-document {
+    min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  /* Table styling to eliminate scrollbars and fit landscape page */
+  .table-wrapper {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
+  }
+
+  table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  thead th, tbody td {
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  .page-break { page-break-before: always; }
+}
+
+/* Screen print preview */
+#print-view-container {
+  display: none;
+}
+#print-view-container.active {
+  display: block;
+}
