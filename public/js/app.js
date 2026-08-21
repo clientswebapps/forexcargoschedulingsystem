@@ -134,10 +134,16 @@ function handleRoute(hash) {
   const role = state.user.role;
 
   // Guard: salesperson cannot access admin/office pages
-  const adminOfficeRoutes = ['/schedules', '/bookings', '/customers', '/users', '/activity-log'];
-  if (role === 'salesperson' && adminOfficeRoutes.includes(base)) {
-    navigate('/my-schedule');
-    return;
+  const adminOfficeRoutes = ['/customers', '/users', '/activity-log'];
+  if (role === 'salesperson') {
+    if (adminOfficeRoutes.includes(base)) {
+      navigate('/my-schedule');
+      return;
+    }
+    if ((base === '/schedules' || base === '/bookings') && !segments[1]) {
+      navigate('/my-schedule');
+      return;
+    }
   }
   if (base === '/users' && role !== 'admin') {
     navigate('/');

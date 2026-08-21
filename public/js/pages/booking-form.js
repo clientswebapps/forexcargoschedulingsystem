@@ -68,6 +68,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
   }
 
   const b = existingBooking;
+  const isSalesCreator = isSales && b && b.bookedById === uid;
 
   // Render the form inside the modal body
   const modalBody = container.querySelector('.modal-body');
@@ -85,14 +86,14 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
               <label class="form-label required" for="bf-name">Customer Name</label>
               <input type="text" id="bf-name" class="form-control" placeholder="Full name"
                 value="${escapeHtml(b?.snapshot_name || '')}"
-                ${isSales && isEdit ? 'disabled' : ''}>
+                ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
             </div>
             <div class="form-group">
               <label class="form-label required" for="bf-phone">Contact Number</label>
               <div class="autocomplete-wrapper">
                 <input type="tel" id="bf-phone" class="form-control" placeholder="+973 XXXX XXXX" autocomplete="off"
                   value="${escapeHtml(b?.snapshot_contactNumber || '')}"
-                  ${isSales && isEdit ? 'disabled' : ''}>
+                  ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
                 <div class="autocomplete-dropdown hidden" id="phone-dropdown"></div>
               </div>
             </div>
@@ -101,7 +102,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
             <label class="form-label" for="bf-address">Address</label>
             <input type="text" id="bf-address" class="form-control" placeholder="Street, Area, City"
               value="${escapeHtml(b?.snapshot_address || '')}"
-              ${isSales && isEdit ? 'disabled' : ''}>
+              ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
           </div>
           <input type="hidden" id="bf-customer-id" value="${b?.customerId || ''}">
         </div>
@@ -112,7 +113,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
           <div class="form-row">
             <div class="form-group">
               <label class="form-label required" for="bf-type">Service Type</label>
-              <select id="bf-type" class="form-control" ${isSales && isEdit ? 'disabled' : ''}>
+              <select id="bf-type" class="form-control" ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
                 <option value="">Select type…</option>
                 <option ${b?.serviceType==='Pickup'?'selected':''}>Pickup</option>
                 <option ${b?.serviceType==='Delivery'?'selected':''}>Delivery</option>
@@ -123,7 +124,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
               <label class="form-label required" for="bf-date">Scheduled Date</label>
               <input type="date" id="bf-date" class="form-control"
                 value="${b?.scheduledDate ? tsToDateInput(b.scheduledDate) : ''}"
-                ${isSales && isEdit ? 'disabled' : ''}>
+                ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
             </div>
             <div class="form-group" style="flex: 1;">
               <label class="form-label required" for="bf-time">Scheduled Time</label>
@@ -131,8 +132,8 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
                 <input type="text" id="bf-time" class="form-control" style="flex: 2;"
                   value="${b?.scheduledTime || (b?.scheduledDate ? formatTimePart(b.scheduledDate) : '')}"
                   placeholder="e.g. 10:00, Any"
-                  ${isSales && isEdit ? 'disabled' : ''}>
-                <select id="bf-period" class="form-control" style="flex: 1;" ${isSales && isEdit ? 'disabled' : ''}>
+                  ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
+                <select id="bf-period" class="form-control" style="flex: 1;" ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
                   <option value="AM" ${getBookingPeriod(b) !== 'PM' ? 'selected' : ''}>AM</option>
                   <option value="PM" ${getBookingPeriod(b) === 'PM' ? 'selected' : ''}>PM</option>
                 </select>
@@ -143,7 +144,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
             <label class="form-label" for="bf-details">Service Details / Description</label>
             <textarea id="bf-details" class="form-control" rows="2"
               placeholder="Describe the service requirements…"
-              ${isSales && isEdit ? 'disabled' : ''}>${escapeHtml(b?.serviceDetails || '')}</textarea>
+              ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>${escapeHtml(b?.serviceDetails || '')}</textarea>
           </div>
         </div>
       </div>
@@ -177,7 +178,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
           <div class="form-group" style="margin-bottom:0">
             <label class="form-label required" for="bf-status">Status</label>
             <select id="bf-status" class="form-control">
-              ${isSales ? `
+              ${isSales && !isSalesCreator ? `
                 <option value="Pending"   ${b?.status==='Pending'?'selected':''}>Pending</option>
                 <option value="Completed" ${b?.status==='Completed'?'selected':''}>Completed</option>
               ` : `
@@ -213,7 +214,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
             ${isEdit ? 'Save Changes' : 'Create Schedule'}
           </button>
 
-          ${isEdit && !isSales ? `
+          ${isEdit && (!isSales || isSalesCreator) ? `
           <button class="btn btn-danger w-full" id="cancel-schedule-btn">
             Cancel Schedule
           </button>` : ''}
@@ -339,7 +340,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
       if (isEdit) {
         const prevSalesId = b.salespersonId;
         let updates;
-        if (isSales) {
+        if (isSales && !isSalesCreator) {
           updates = {
             status:          statusVal,
             completionNotes: completion,

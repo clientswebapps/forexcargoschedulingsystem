@@ -26,8 +26,8 @@ export async function renderBookingDetail(container, appState, bookingId) {
         return;
       }
 
-      // Salesperson can only view their own
-      if (role === 'salesperson' && doc.salespersonId !== uid) {
+      // Salesperson can only view their own (assigned or self-created)
+      if (role === 'salesperson' && doc.salespersonId !== uid && doc.bookedById !== uid) {
         container.innerHTML = errorHTML('You do not have permission to view this schedule.');
         return;
       }
@@ -36,11 +36,11 @@ export async function renderBookingDetail(container, appState, bookingId) {
       renderDetail();
     });
 
-    const canEdit = role !== 'salesperson';
     const isSales = role === 'salesperson';
 
     function renderDetail() {
       if (!b) return;
+      const canEdit = role !== 'salesperson' || b.salespersonId === uid || b.bookedById === uid;
       container.innerHTML = `
         <div class="page-header">
           <div class="page-header-left">

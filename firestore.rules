@@ -60,11 +60,9 @@ service cloud.firestore {
 
     // ── BOOKINGS collection ──────────────────────────────────
     match /bookings/{bookingId} {
-      // Read:
-      //   Admin/Office: all bookings
-      //   Salesperson: only their assigned bookings
       allow read: if isAdminOrOffice()
-                  || (isSalesperson() && resource.data.salespersonId == uid());
+                  || (isSalesperson()
+                      && (resource.data.salespersonId == uid() || resource.data.bookedById == uid()));
 
       // Create:
       //   Admin/Office: any booking
@@ -76,13 +74,18 @@ service cloud.firestore {
 
       // Update:
       //   Admin/Office: any field
-      //   Salesperson: only completionNotes, status, updatedAt, updatedById on their own booking
-      //                AND status can only be set to Pending or Completed (not Cancelled)
+      //   Salesperson:
+      //     - If they created the booking themselves, they can fully update it (except bookedById).
+      //     - If they are assigned but did not create it, they can only update status and completionNotes (must be Pending or Completed).
       allow update: if isAdminOrOffice()
                     || (isSalesperson()
-                        && resource.data.salespersonId == uid()
-                        && onlyUpdating(['completionNotes','status','updatedAt','updatedById'])
-                        && request.resource.data.status in ['Pending','Completed']);
+                        && (
+                          (resource.data.bookedById == uid() && request.resource.data.bookedById == uid())
+                          ||
+                          (resource.data.salespersonId == uid()
+                           && onlyUpdating(['completionNotes','status','updatedAt','updatedById'])
+                           && request.resource.data.status in ['Pending','Completed'])
+                        ));
 
       // Delete: Admin and Office Staff
       allow delete: if isAdminOrOffice();
