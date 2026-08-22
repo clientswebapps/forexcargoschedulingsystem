@@ -18,6 +18,7 @@ import { renderStaffActivity }  from './pages/staff-activity.js';
 import { renderPrint }         from './pages/print.js';
 import { Users, Notifications, ActivityLog } from './db.js';
 import { initPresence, stopPresence, updatePresenceRoute } from './presence.js';
+import { initPWA, promptInstallApp, updateDownloadAppButtons } from './pwa.js';
 import { showToast, showModal, closeModal, initials, roleLabel, icons, escapeHtml } from './utils.js';
 
 /* ── App State ──────────────────────────────────────────── */
@@ -114,6 +115,7 @@ function showApp() {
   setupMobileNav();
   refreshNotifBadge();
   initPresence(state.uid);
+  initPWA();
 
   try {
     ActivityLog.write({ action: 'USER_LOGIN', details: { email: state.user?.email || state.authUser?.email } });
@@ -255,10 +257,14 @@ function buildNav() {
       </li>`;
   }).join('');
 
-  // Change Name, Change Email, Change Password, and Logout at bottom
+  // Download App, Change Name, Change Email, Change Password, and Logout at bottom
   const footer = document.getElementById('sidebar-footer');
   if (footer) {
     footer.innerHTML = `
+      <button class="nav-item download-app-btn" id="download-app-nav-btn" style="color:#64B5F6;margin-bottom:2px;font-weight:500;">
+        <span class="nav-icon">${icons.download}</span>
+        <span>Download App</span>
+      </button>
       <button class="nav-item" id="change-name-nav-btn" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
         <span class="nav-icon">${icons.user}</span>
         <span>Change Name</span>
@@ -275,10 +281,13 @@ function buildNav() {
         <span class="nav-icon">${icons.logout}</span>
         <span>Sign Out</span>
       </button>`;
-    footer.querySelector('#change-name-nav-btn').addEventListener('click', showChangeNameModal);
-    footer.querySelector('#change-email-nav-btn').addEventListener('click', showChangeEmailModal);
-    footer.querySelector('#change-pwd-nav-btn').addEventListener('click', showChangePasswordModal);
-    footer.querySelector('#logout-nav-btn').addEventListener('click', signOut);
+    footer.querySelector('#download-app-nav-btn')?.addEventListener('click', promptInstallApp);
+    footer.querySelector('#change-name-nav-btn')?.addEventListener('click', showChangeNameModal);
+    footer.querySelector('#change-email-nav-btn')?.addEventListener('click', showChangeEmailModal);
+    footer.querySelector('#change-pwd-nav-btn')?.addEventListener('click', showChangePasswordModal);
+    footer.querySelector('#logout-nav-btn')?.addEventListener('click', signOut);
+
+    updateDownloadAppButtons();
   }
 }
 
@@ -328,6 +337,7 @@ function updateUserInfo() {
 
 /* ── Topbar setup ───────────────────────────────────────── */
 function setupTopbar() {
+  document.getElementById('topbar-download-btn')?.addEventListener('click', promptInstallApp);
   document.getElementById('logout-btn')?.addEventListener('click', signOut);
   document.getElementById('notifications-btn')?.addEventListener('click', () => navigate('/notifications'));
 }

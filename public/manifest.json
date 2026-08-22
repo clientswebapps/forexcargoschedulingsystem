@@ -1,0 +1,52 @@
+{
+  "name": "Forex Cargo Schedule & Operations",
+  "short_name": "Forex Cargo",
+  "description": "Internal scheduling and operations system for Forex Cargo Bahrain",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0A192F",
+  "theme_color": "#0A192F",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/images/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Schedule",
+      "short_name": "My Schedule",
+      "url": "/#/my-schedule",
+      "description": "View my assigned cargo schedules"
+    },
+    {
+      "name": "All Schedules",
+      "short_name": "Schedules",
+      "url": "/#/schedules",
+      "description": "View and manage all customer schedules"
+    },
+    {
+      "name": "Customer Directory",
+      "short_name": "Customers",
+      "url": "/#/customers",
+      "description": "Search and manage customer directory"
+    }
+  ]
+}
