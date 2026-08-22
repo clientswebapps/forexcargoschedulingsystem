@@ -138,6 +138,12 @@ export function getDateRange(rangeType, customFrom = '', customTo = '') {
     const todayStr = formatYMD(now);
     return { dateFrom: todayStr, dateTo: todayStr };
   }
+  if (rangeType === 'yesterday') {
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const yestStr = formatYMD(yesterday);
+    return { dateFrom: yestStr, dateTo: yestStr };
+  }
   if (rangeType === 'tomorrow') {
     const tomorrow = new Date(now);
     tomorrow.setDate(now.getDate() + 1);
@@ -152,6 +158,15 @@ export function getDateRange(rangeType, customFrom = '', customTo = '') {
     const saturday = new Date(sunday);
     saturday.setDate(sunday.getDate() + 6);
     return { dateFrom: formatYMD(sunday), dateTo: formatYMD(saturday) };
+  }
+  if (rangeType === 'last_week' || rangeType === 'lastWeek') {
+    const current = new Date(now);
+    const day = current.getDay(); // 0 is Sunday
+    const lastSunday = new Date(current);
+    lastSunday.setDate(current.getDate() - day - 7);
+    const lastSaturday = new Date(lastSunday);
+    lastSaturday.setDate(lastSunday.getDate() + 6);
+    return { dateFrom: formatYMD(lastSunday), dateTo: formatYMD(lastSaturday) };
   }
   if (rangeType === 'month') {
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);

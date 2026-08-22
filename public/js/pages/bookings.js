@@ -7,6 +7,9 @@ import { formatDateTime, formatDate, formatBookingDateTime, serviceBadge, loadin
 import { openScheduleModal } from './booking-form.js';
 
 export async function renderBookings(container, appState) {
+  const role = appState.user.role;
+  const isSales = role === 'salesperson';
+
   container.innerHTML = `
     <div class="page-header">
       <div class="page-header-left">
@@ -14,6 +17,7 @@ export async function renderBookings(container, appState) {
         <div class="page-subtitle">All schedule records</div>
       </div>
       <div class="page-actions">
+        ${!isSales ? `
         <button class="btn btn-secondary" id="export-csv-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export CSV
@@ -21,7 +25,7 @@ export async function renderBookings(container, appState) {
         <button class="btn btn-secondary" id="print-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Print
-        </button>
+        </button>` : ''}
         <button class="btn btn-primary" id="new-schedule-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Create Schedule
@@ -40,8 +44,10 @@ export async function renderBookings(container, appState) {
           <div class="filter-label">Date Range</div>
           <select id="f-date-range" class="filter-control">
             <option value="today" selected>Today</option>
+            <option value="yesterday">Yesterday</option>
             <option value="tomorrow">Tomorrow</option>
             <option value="week">This Week</option>
+            <option value="last_week">Last Week</option>
             <option value="month">This Month</option>
             <option value="all">All Time</option>
             <option value="custom">Custom</option>
@@ -77,12 +83,6 @@ export async function renderBookings(container, appState) {
           </select>
         </div>
 
-        <div class="filter-group">
-          <div class="filter-label">Created By</div>
-          <select id="f-booked-by" class="filter-control">
-            <option value="">All</option>
-          </select>
-        </div>
         <div class="filter-actions">
           <button class="btn btn-secondary btn-sm" id="clear-filters-btn">Clear</button>
         </div>
@@ -96,19 +96,13 @@ export async function renderBookings(container, appState) {
       <div id="bookings-table">${loadingHTML()}</div>
     </div>`;
 
-  // Populate salesperson & created-by dropdowns
+  // Populate salesperson dropdown
   let allStaff = [];
   try {
     allStaff = await Users.getAll();
     const salespeople = allStaff.filter(u => u.role === 'salesperson');
     const sEl = document.getElementById('f-salesperson');
-    salespeople.forEach(u => sEl.add(new Option(u.displayName, u.id)));
-
-    const bEl = document.getElementById('f-booked-by');
-    const isSuper = appState.user.role === 'super_admin';
-    allStaff.filter(u => u.role !== 'salesperson' && (u.role !== 'super_admin' || isSuper)).forEach(u => bEl.add(new Option(u.displayName, u.id)));
-    // Also add salespersons as they can create schedules
-    salespeople.forEach(u => bEl.add(new Option(u.displayName + ' (Sales)', u.id)));
+    if (sEl) salespeople.forEach(u => sEl.add(new Option(u.displayName, u.id)));
   } catch(_) {}
 
   let allBookings = [];
@@ -142,7 +136,6 @@ export async function renderBookings(container, appState) {
     const fStatus   = document.getElementById('f-status')?.value;
     const fPeriod   = document.getElementById('f-period')?.value;
     const fSales    = document.getElementById('f-salesperson')?.value;
-    const fBookedBy = document.getElementById('f-booked-by')?.value;
 
     const tableEl = document.getElementById('bookings-table');
     if (tableEl && !allBookings.length) {
@@ -154,7 +147,6 @@ export async function renderBookings(container, appState) {
         {
           status:          fStatus   || undefined,
           salespersonId:   fSales    || undefined,
-          bookedById:      fBookedBy || undefined,
           dateFrom:        dateFrom  || undefined,
           dateTo:          dateTo    || undefined,
           scheduledPeriod: fPeriod   || undefined,
@@ -320,7 +312,7 @@ export async function renderBookings(container, appState) {
   };
 
   // Event bindings
-  const filterIds = ['f-status','f-salesperson','f-booked-by','f-date-from','f-date-to','f-period'];
+  const filterIds = ['f-status','f-salesperson','f-date-from','f-date-to','f-period'];
   filterIds.forEach(id => document.getElementById(id)?.addEventListener('change', load));
   
   let prevHasSearch = false;
@@ -356,7 +348,6 @@ export async function renderBookings(container, appState) {
     document.getElementById('f-status').value = '';
     document.getElementById('f-period').value = '';
     document.getElementById('f-salesperson').value = '';
-    document.getElementById('f-booked-by').value = '';
     load();
   });
 

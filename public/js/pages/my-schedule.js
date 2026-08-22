@@ -9,6 +9,8 @@ import { openScheduleModal } from './booking-form.js';
 
 export async function renderMySchedule(container, appState) {
   const uid = appState.uid;
+  const role = appState.user.role;
+  const isSales = role === 'salesperson';
 
   container.innerHTML = `
     <div class="page-header">
@@ -17,6 +19,7 @@ export async function renderMySchedule(container, appState) {
         <div class="page-subtitle">Your assigned schedules</div>
       </div>
       <div class="page-actions">
+        ${!isSales ? `
         <button class="btn btn-secondary" id="my-export-csv-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export CSV
@@ -24,7 +27,7 @@ export async function renderMySchedule(container, appState) {
         <button class="btn btn-secondary" id="my-print-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Print My Schedule
-        </button>
+        </button>` : ''}
         <button class="btn btn-primary" id="my-new-schedule-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Create Schedule
@@ -39,8 +42,10 @@ export async function renderMySchedule(container, appState) {
           <div class="filter-label">Date Range</div>
           <select id="ms-date-range" class="filter-control">
             <option value="today" selected>Today</option>
+            <option value="yesterday">Yesterday</option>
             <option value="tomorrow">Tomorrow</option>
             <option value="week">This Week</option>
+            <option value="last_week">Last Week</option>
             <option value="month">This Month</option>
             <option value="all">All Time</option>
             <option value="custom">Custom</option>
@@ -73,10 +78,6 @@ export async function renderMySchedule(container, appState) {
         <div class="filter-group flex-2">
           <div class="filter-label">Search (customer name or number)</div>
           <input type="text" id="ms-search" class="filter-control" placeholder="Search name or contact…">
-        </div>
-        <div class="filter-group">
-          <div class="filter-label">Created By</div>
-          <input type="text" id="ms-booked-by" class="filter-control" placeholder="Search created by…">
         </div>
         <div class="filter-actions">
           <button class="btn btn-secondary btn-sm" id="ms-clear-btn">Clear</button>
@@ -153,15 +154,10 @@ export async function renderMySchedule(container, appState) {
 
   function applySearch() {
     const searchInput = document.getElementById('ms-search');
-    const bookedByInput = document.getElementById('ms-booked-by');
     const rawQ = (searchInput?.value || '').trim().toLowerCase();
     const cleanQ = rawQ.replace(/[\s\-\+\(\)]/g, '');
-    const bookedByQ = (bookedByInput?.value || '').trim().toLowerCase();
 
     filtered = allBookings.filter(b => {
-      if (bookedByQ && !(b.bookedByName || '').toLowerCase().includes(bookedByQ)) {
-        return false;
-      }
       if (rawQ) {
         const name = (b.snapshot_name || '').toLowerCase();
         const phone = (b.snapshot_contactNumber || '').toLowerCase();
@@ -267,7 +263,6 @@ export async function renderMySchedule(container, appState) {
     }
   };
   document.getElementById('ms-search')?.addEventListener('input', debounce(onMsSearchInput, 200));
-  document.getElementById('ms-booked-by')?.addEventListener('input', debounce(onMsSearchInput, 200));
 
   // Date Range change
   document.getElementById('ms-date-range')?.addEventListener('change', (e) => {
@@ -281,7 +276,6 @@ export async function renderMySchedule(container, appState) {
 
   document.getElementById('ms-clear-btn')?.addEventListener('click', () => {
     document.getElementById('ms-search').value = '';
-    document.getElementById('ms-booked-by').value = '';
     document.getElementById('ms-date-range').value = 'today';
     document.getElementById('ms-date-from').value = '';
     document.getElementById('ms-date-to').value   = '';

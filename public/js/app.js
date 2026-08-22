@@ -261,14 +261,16 @@ function buildNav() {
       </li>`;
   }).join('');
 
-  // Download App, Change Email, Change Password, and Logout at bottom
+  // Download App, Change Email, Change Password (admin only), and Logout at bottom
   const footer = document.getElementById('sidebar-footer');
+  const canManageCredentials = role === 'admin' || role === 'super_admin';
   if (footer) {
     footer.innerHTML = `
       <button class="nav-item download-app-btn" id="download-app-nav-btn" title="Download / Install App" style="color:#64B5F6;margin-bottom:2px;font-weight:500;">
         <span class="nav-icon">${icons.download}</span>
         <span>Download App</span>
       </button>
+      ${canManageCredentials ? `
       <button class="nav-item" id="change-email-nav-btn" title="Change Email" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
         <span class="nav-icon">${icons.mail}</span>
         <span>Change Email</span>
@@ -276,7 +278,7 @@ function buildNav() {
       <button class="nav-item" id="change-pwd-nav-btn" title="Change Password" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
         <span class="nav-icon">${icons.key}</span>
         <span>Change Password</span>
-      </button>
+      </button>` : ''}
       <button class="nav-item" id="logout-nav-btn" title="Sign Out" style="color:rgba(255,255,255,0.6)">
         <span class="nav-icon">${icons.logout}</span>
         <span>Sign Out</span>
