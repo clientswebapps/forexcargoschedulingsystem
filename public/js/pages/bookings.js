@@ -3,7 +3,7 @@
  */
 'use strict';
 import { Bookings, Users, ActivityLog } from '../db.js';
-import { formatDateTime, formatDate, formatBookingDateTime, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange, showToast, exportBookingsToCSV } from '../utils.js';
+import { formatDateTime, formatDate, formatBookingDateTime, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange, showToast, showModal, exportBookingsToCSV } from '../utils.js';
 import { openScheduleModal } from './booking-form.js';
 
 export async function renderBookings(container, appState) {
@@ -289,29 +289,34 @@ export async function renderBookings(container, appState) {
     }
   };
 
-  // Immediate delete schedule handler
-  window._deleteSchedule = async (btnEl, id, customerName) => {
-    if (!confirm(`Are you sure you want to delete the schedule for "${customerName}"?\nThis action cannot be undone.`)) {
-      return;
-    }
-
-    btnEl.disabled = true;
-    btnEl.classList.add('btn-loading');
-
-    try {
-      await Bookings.delete(id);
-      await ActivityLog.write({
-        bookingId: id,
-        action: 'BOOKING_DELETED',
-        details: { customer: customerName }
-      });
-      showToast(`Schedule for "${customerName}" deleted.`, 'success');
-    } catch (err) {
-      console.error('Failed to delete schedule:', err);
-      btnEl.disabled = false;
-      btnEl.classList.remove('btn-loading');
-      showToast('Failed to delete schedule: ' + (err.message || ''), 'error');
-    }
+  // Delete schedule handler with styled confirmation modal
+  window._deleteSchedule = (btnEl, id, customerName) => {
+    showModal({
+      title: 'Delete Schedule',
+      body: `<p>Are you sure you want to delete the schedule for <strong>${escapeHtml(customerName)}</strong>?</p>
+             <p class="text-xs text-secondary mt-1">This action cannot be undone.</p>`,
+      confirmText: 'Delete Schedule',
+      cancelText: 'Cancel',
+      danger: true,
+      onConfirm: async () => {
+        btnEl.disabled = true;
+        btnEl.classList.add('btn-loading');
+        try {
+          await Bookings.delete(id);
+          await ActivityLog.write({
+            bookingId: id,
+            action: 'BOOKING_DELETED',
+            details: { customer: customerName }
+          });
+          showToast(`Schedule for "${customerName}" deleted.`, 'success');
+        } catch (err) {
+          console.error('Failed to delete schedule:', err);
+          btnEl.disabled = false;
+          btnEl.classList.remove('btn-loading');
+          showToast('Failed to delete schedule: ' + (err.message || ''), 'error');
+        }
+      }
+    });
   };
 
   // Event bindings
