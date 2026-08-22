@@ -118,7 +118,7 @@ function showApp() {
   setupMobileNav();
   refreshNotifBadge();
   initPresence(state.uid);
-  initPWA();
+  updateDownloadAppButtons();
 
   try {
     ActivityLog.write({ action: 'USER_LOGIN', details: { email: state.user?.email || state.authUser?.email } });

@@ -8,6 +8,7 @@ import { showToast, showModal, icons, escapeHtml } from './utils.js';
 
 let deferredPrompt = null;
 let updateRegistration = null;
+let isPWAInitialized = false;
 
 /** Check if running in standalone installed mode */
 export function isStandalone() {
@@ -34,6 +35,12 @@ export function isAndroid() {
 
 /** Initialize PWA Service Worker & Install Listeners */
 export function initPWA() {
+  if (isPWAInitialized) {
+    updateDownloadAppButtons();
+    return;
+  }
+  isPWAInitialized = true;
+
   // 1. Register Service Worker
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', async () => {
@@ -82,7 +89,7 @@ export function initPWA() {
   // 3. Track successful install
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    showToast('Forex Cargo App installed successfully!', 'success');
+    showToast('Forex Cargo App is installed!', 'success');
     updateDownloadAppButtons();
   });
 }
@@ -92,7 +99,10 @@ async function triggerDirectInstall() {
   if (deferredPrompt) {
     try {
       deferredPrompt.prompt();
-      await deferredPrompt.userChoice;
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        showToast('Installing Forex Cargo App…', 'info');
+      }
       deferredPrompt = null;
       updateDownloadAppButtons();
     } catch (err) {
@@ -150,7 +160,7 @@ export function updateDownloadAppButtons() {
 /** Prompt the user to install / download the app */
 export async function promptInstallApp() {
   if (isStandalone()) {
-    showToast('Forex Cargo is already installed and running in App mode.', 'info');
+    showToast('Forex Cargo App is already installed.', 'info');
     return;
   }
 
