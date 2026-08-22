@@ -74,7 +74,7 @@ export async function renderBookingDetail(container, appState, bookingId) {
           </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;align-items:start;">
+        <div class="schedule-detail-layout">
 
           <div style="display:flex;flex-direction:column;gap:20px;">
 

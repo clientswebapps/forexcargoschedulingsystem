@@ -80,7 +80,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
   // Render the form inside the modal body
   const modalBody = container.querySelector('.modal-body');
   modalBody.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;">
+    <div class="schedule-form-grid">
 
       <!-- Left Column -->
       <div style="display:flex;flex-direction:column;gap:16px;">
