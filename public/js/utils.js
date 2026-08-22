@@ -138,6 +138,12 @@ export function getDateRange(rangeType, customFrom = '', customTo = '') {
     const todayStr = formatYMD(now);
     return { dateFrom: todayStr, dateTo: todayStr };
   }
+  if (rangeType === 'tomorrow') {
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const tomorrowStr = formatYMD(tomorrow);
+    return { dateFrom: tomorrowStr, dateTo: tomorrowStr };
+  }
   if (rangeType === 'week') {
     const current = new Date(now);
     const day = current.getDay(); // 0 is Sunday

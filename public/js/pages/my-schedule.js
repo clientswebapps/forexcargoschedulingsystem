@@ -39,6 +39,7 @@ export async function renderMySchedule(container, appState) {
           <div class="filter-label">Date Range</div>
           <select id="ms-date-range" class="filter-control">
             <option value="today" selected>Today</option>
+            <option value="tomorrow">Tomorrow</option>
             <option value="week">This Week</option>
             <option value="month">This Month</option>
             <option value="all">All Time</option>
