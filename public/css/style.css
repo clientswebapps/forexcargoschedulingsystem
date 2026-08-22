@@ -467,6 +467,389 @@ ul { list-style: none; }
   }
 }
 
+/* ── Modern Dashboard Hero Banner & Quick Actions ─────────── */
+.dash-hero-banner {
+  background: linear-gradient(135deg, #0D47A1 0%, #1565C0 50%, #1976D2 100%);
+  color: #ffffff;
+  border-radius: var(--radius-xl);
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 25px -5px rgba(13, 71, 161, 0.25), 0 8px 10px -6px rgba(13, 71, 161, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.dash-hero-banner::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 340px;
+  height: 340px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.dash-hero-left {
+  position: relative;
+  z-index: 2;
+}
+.dash-greeting {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dash-user-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  backdrop-filter: blur(4px);
+}
+.dash-clock-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 5px 14px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-full);
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 400;
+}
+.dash-pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #00E676;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7);
+  animation: dashPulse 2s infinite;
+}
+@keyframes dashPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(0, 230, 118, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 230, 118, 0); }
+}
+
+.dash-quick-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+.btn-dash-action {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius);
+  padding: 9px 15px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all var(--transition);
+  cursor: pointer;
+  text-decoration: none;
+  line-height: 1;
+}
+.btn-dash-action:hover {
+  background: #ffffff;
+  color: var(--navy);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.btn-dash-action-primary {
+  background: #ffffff;
+  color: var(--navy);
+  font-weight: 600;
+  border-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.btn-dash-action-primary:hover {
+  background: var(--light-blue-50);
+  color: var(--navy-dark);
+}
+
+/* Next-Up Schedule Spotlight Card */
+.dash-spotlight-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  border: 1px solid #BBDEFB;
+  box-shadow: var(--shadow-sm);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow var(--transition);
+}
+.dash-spotlight-card:hover {
+  box-shadow: var(--shadow-md);
+}
+.dash-spotlight-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1976D2, #42A5F5, #00E676);
+}
+.dash-spotlight-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.dash-spotlight-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 260px;
+  flex: 1;
+}
+.dash-spotlight-time-badge {
+  background: var(--light-blue-50);
+  border: 1px solid var(--light-blue-100);
+  color: var(--navy);
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+.dash-spotlight-time-text {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.dash-spotlight-time-label {
+  font-size: 0.68rem;
+  color: var(--blue);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+.dash-spotlight-info h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px 0;
+}
+.dash-spotlight-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Stat Card Progress */
+.dash-progress-wrap {
+  width: 100%;
+  margin-top: 8px;
+}
+.dash-progress-bar {
+  height: 6px;
+  background: var(--lighter-gray);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  position: relative;
+}
+.dash-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+  border-radius: var(--radius-full);
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dash-progress-label {
+  font-size: 0.7rem;
+  color: var(--text-hint);
+  margin-top: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* Distribution badges below chart */
+.dash-dist-tags {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--divider);
+  margin-top: 14px;
+}
+.dash-dist-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.dash-dist-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dash-dist-dot.pickup { background: #1976D2; }
+.dash-dist-dot.delivery { background: #2E7D32; }
+.dash-dist-dot.custom { background: #E65100; }
+
+/* Responsive Dashboard Breakpoints */
+@media (max-width: 900px) {
+  .dash-hero-banner {
+    padding: 20px 22px;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .dash-spotlight-card {
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .dash-spotlight-content {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .dash-hero-banner {
+    padding: 16px 18px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    border-radius: var(--radius-lg);
+    margin-bottom: 16px;
+  }
+  .dash-greeting {
+    font-size: 1.25rem;
+    gap: 6px;
+  }
+  .dash-clock-pill {
+    font-size: 0.74rem;
+    padding: 4px 10px;
+    margin-top: 6px;
+  }
+  .dash-quick-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .dash-quick-actions .btn-dash-action {
+    width: 100%;
+    padding: 9px 8px;
+    font-size: 0.78rem;
+    justify-content: center;
+  }
+  .dash-spotlight-card {
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-lg);
+  }
+  .dash-spotlight-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .dash-spotlight-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 100%;
+  }
+  .dash-spotlight-time-badge {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    min-width: unset;
+  }
+  .dash-spotlight-time-text {
+    font-size: 1rem;
+  }
+  .dash-spotlight-time-label {
+    margin-top: 0;
+  }
+  .dash-spotlight-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+  }
+  .dash-spotlight-actions .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 7px 8px;
+    font-size: 0.78rem;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    padding: 14px 16px;
+  }
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  #dash-chart-card .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  #dash-chart-card .card-header .tabs {
+    width: 100%;
+    display: flex;
+  }
+  #dash-chart-card .card-header .tabs .tab-btn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 0.72rem;
+  }
+  #dash-chart-card .card-body {
+    padding: 12px 14px;
+    min-height: 160px;
+  }
+  .dash-dist-tags {
+    gap: 8px 12px;
+    font-size: 0.72rem;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+}
+
 /* Stat Cards */
 .stats-grid {
   display: grid;

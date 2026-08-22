@@ -1,26 +1,88 @@
 /**
- * dashboard.js — Dashboard page
+ * dashboard.js — Executive Dashboard Command Center
+ * Forex Cargo Scheduling System
  */
 'use strict';
-import { Bookings, Notifications } from '../db.js';
-import { formatDateTime, formatBookingDateTime, formatBookingTime, statusBadge, serviceBadge, loadingHTML, errorHTML, escapeHtml, timeAgo } from '../utils.js';
+import { Bookings, Notifications, Customers, ActivityLog, Users } from '../db.js';
+import { formatDateTime, formatBookingDateTime, formatBookingTime, statusBadge, serviceBadge, loadingHTML, errorHTML, escapeHtml, timeAgo, showToast, showModal, initials } from '../utils.js';
+import { openScheduleModal } from './booking-form.js';
 
 export async function renderDashboard(container, appState) {
+  const role = appState.user.role;
+  const uid  = appState.uid;
+  const displayName = appState.user.displayName || 'User';
+
+  // Greeting based on current time
+  const currentHour = new Date().getHours();
+  let greetingText = 'Welcome back';
+  let greetingEmoji = '👋';
+  if (currentHour >= 5 && currentHour < 12) {
+    greetingText = 'Good morning';
+    greetingEmoji = '☀️';
+  } else if (currentHour >= 12 && currentHour < 17) {
+    greetingText = 'Good afternoon';
+    greetingEmoji = '🌤️';
+  } else {
+    greetingText = 'Good evening';
+    greetingEmoji = '🌙';
+  }
+
+  // Role badge formatting
+  const roleDisplayMap = {
+    super_admin:  '👑 Super Admin',
+    admin:        '🛡️ Admin',
+    office_staff: '💼 Office Staff',
+    salesperson:  '🚗 Salesperson'
+  };
+  const roleBadgeText = roleDisplayMap[role] || 'User';
+
   container.innerHTML = `
-    <div class="page-header">
-      <div class="page-header-left">
-        <h1 class="page-title">Dashboard</h1>
-        <div class="page-subtitle">Welcome back, ${escapeHtml(appState.user.displayName || 'User')}</div>
+    <!-- Hero Welcome Banner with Quick Actions -->
+    <div class="dash-hero-banner">
+      <div class="dash-hero-left">
+        <div class="dash-greeting">
+          <span>${greetingText}, ${escapeHtml(displayName)}</span>
+          <span>${greetingEmoji}</span>
+          <span class="dash-user-badge">${roleBadgeText}</span>
+        </div>
+        <div class="dash-clock-pill">
+          <span class="dash-pulse-dot"></span>
+          <span id="dash-live-clock">Loading time…</span>
+        </div>
+      </div>
+      <div class="dash-quick-actions">
+        <button class="btn-dash-action btn-dash-action-primary" id="dash-btn-new-schedule">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Schedule
+        </button>
+        ${role !== 'salesperson' ? `
+        <button class="btn-dash-action" id="dash-btn-new-customer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          Add Customer
+        </button>` : ''}
+        <button class="btn-dash-action" id="dash-btn-print-today">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print Today's Run
+        </button>
+        <button class="btn-dash-action" id="dash-btn-view-schedules">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          ${role === 'salesperson' ? 'My Schedule' : 'All Schedules'}
+        </button>
       </div>
     </div>
+
+    <!-- Spotlight: Next Up Schedule -->
+    <div id="dash-spotlight-area"></div>
+
+    <!-- Stats Grid -->
     <div class="stats-grid" id="dash-stats">${loadingHTML()}</div>
     
     <!-- Analytics Chart -->
-    <div class="card" style="margin-bottom:20px;" id="dash-chart-card">
-      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;padding: 14px 20px;">
+    <div class="card" style="margin-bottom:24px;" id="dash-chart-card">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;padding: 16px 20px;">
         <div>
           <div class="card-title">Schedule Volume Analytics</div>
-          <div class="card-subtitle">Overview of schedule counts over time</div>
+          <div class="card-subtitle">Overview of schedule counts and service distribution</div>
         </div>
         <div class="tabs" style="margin-bottom:0;border-bottom:none;display:flex;gap:4px;">
           <button class="tab-btn active" id="chart-tab-daily" style="padding:6px 12px;font-size:0.75rem;">Daily</button>
@@ -28,73 +90,333 @@ export async function renderDashboard(container, appState) {
           <button class="tab-btn" id="chart-tab-monthly" style="padding:6px 12px;font-size:0.75rem;">Monthly</button>
         </div>
       </div>
-      <div class="card-body" id="dash-chart" style="min-height:180px;display:flex;align-items:center;justify-content:center;padding:20px 24px;">
+      <div class="card-body" id="dash-chart" style="min-height:180px;padding:20px 24px;">
         ${loadingHTML('Loading analytics…')}
       </div>
     </div>
 
+    <!-- Bottom Two Column Feed -->
     <div class="dash-grid" id="dash-grid">
       <div class="card" id="dash-upcoming-card">
         <div class="card-header">
           <div>
-            <div class="card-title">Today\'s Schedules</div>
-            <div class="card-subtitle">Scheduled for today</div>
+            <div class="card-title">Today's Schedules</div>
+            <div class="card-subtitle">Real-time schedule list for today</div>
           </div>
+          <a href="#" onclick="event.preventDefault();window._navigate && window._navigate('${role === 'salesperson' ? '/my-schedule' : '/schedules'}')" class="text-sm text-blue" style="font-weight:500;">View All</a>
         </div>
         <div id="dash-upcoming">${loadingHTML()}</div>
       </div>
       <div class="card" id="dash-notif-card">
         <div class="card-header">
-          <div class="card-title">Recent Notifications</div>
+          <div>
+            <div class="card-title">Recent Notifications</div>
+            <div class="card-subtitle">Alerts and status updates</div>
+          </div>
+          <a href="#" onclick="event.preventDefault();window._navigate && window._navigate('/notifications')" class="text-sm text-blue" style="font-weight:500;">View All</a>
         </div>
         <div id="dash-notif">${loadingHTML()}</div>
       </div>
     </div>`;
 
   let unsubs = [];
+  let clockTimer = null;
+
+  // Real-time live clock
+  function updateLiveClock() {
+    const clockEl = document.getElementById('dash-live-clock');
+    if (!clockEl) return;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+    clockEl.textContent = `${dateStr} • ${timeStr}`;
+  }
+  updateLiveClock();
+  clockTimer = setInterval(updateLiveClock, 1000);
+
+  // Quick Action Button Handlers
+  document.getElementById('dash-btn-new-schedule')?.addEventListener('click', () => {
+    openScheduleModal(appState, null, () => {});
+  });
+
+  document.getElementById('dash-btn-new-customer')?.addEventListener('click', () => {
+    openQuickCustomerModal();
+  });
+
+  const todayObj = new Date();
+  const padNum = n => String(n).padStart(2, '0');
+  const todayDateStr = `${todayObj.getFullYear()}-${padNum(todayObj.getMonth() + 1)}-${padNum(todayObj.getDate())}`;
+
+  document.getElementById('dash-btn-print-today')?.addEventListener('click', async () => {
+    let salespersons = [];
+    if (role !== 'salesperson') {
+      try {
+        salespersons = await Users.getActiveSalespersons();
+      } catch (_) {}
+    }
+
+    showModal({
+      title: "Print Today's Run",
+      body: `
+        <div class="form-group">
+          <label class="form-label required" for="pf-period">Run Time Period</label>
+          <select id="pf-period" class="form-control">
+            <option value="">All Day (Full Today's Schedule)</option>
+            <option value="AM">AM Run Only</option>
+            <option value="PM">PM Run Only</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="pf-salesperson">Salesperson</label>
+          ${role === 'salesperson' ? `
+            <input type="text" class="form-control form-control-readonly" value="${escapeHtml(displayName)}" readonly>
+            <input type="hidden" id="pf-salesperson" value="${uid}" data-name="${escapeHtml(displayName)}">
+          ` : `
+            <select id="pf-salesperson" class="form-control">
+              <option value="" data-name="">All Salespersons (Full Team Run)</option>
+              ${salespersons.map(s => `<option value="${s.id}" data-name="${escapeHtml(s.displayName)}">${escapeHtml(s.displayName)}</option>`).join('')}
+            </select>
+          `}
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="pf-status">Status Filter</label>
+          <select id="pf-status" class="form-control">
+            <option value="">All Statuses (Pending & Completed)</option>
+            <option value="Pending" selected>Pending Only (Recommended for Run Sheet)</option>
+            <option value="Completed">Completed Only</option>
+          </select>
+        </div>`,
+      confirmText: 'Generate Print Sheet',
+      cancelText: 'Cancel',
+      onConfirm: () => {
+        const periodVal = document.getElementById('pf-period')?.value || '';
+        let salesId = '';
+        let salesName = '';
+        if (role === 'salesperson') {
+          salesId = uid;
+          salesName = displayName;
+        } else {
+          const salesSelect = document.getElementById('pf-salesperson');
+          salesId = salesSelect?.value || '';
+          salesName = salesSelect?.options[salesSelect.selectedIndex]?.dataset.name || '';
+        }
+        const statusVal = document.getElementById('pf-status')?.value || '';
+
+        const params = new URLSearchParams();
+        params.set('rangeType', 'today');
+        params.set('dateFrom', todayDateStr);
+        params.set('dateTo', todayDateStr);
+        if (periodVal) params.set('scheduledPeriod', periodVal);
+        if (salesId) {
+          params.set('salespersonId', salesId);
+          params.set('salespersonName', salesName);
+        }
+        if (statusVal) params.set('status', statusVal);
+
+        window._navigate && window._navigate(`/print?${params.toString()}`);
+      }
+    });
+  });
+
+  document.getElementById('dash-btn-view-schedules')?.addEventListener('click', () => {
+    window._navigate && window._navigate(role === 'salesperson' ? '/my-schedule' : '/schedules');
+  });
+
+  function openQuickCustomerModal() {
+    showModal({
+      title: 'Add New Customer',
+      body: `
+        <div class="form-group">
+          <label class="form-label required" for="dash-cf-name">Customer Name</label>
+          <input type="text" id="dash-cf-name" class="form-control" placeholder="Full name">
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="dash-cf-phone">Contact Number</label>
+          <input type="tel" id="dash-cf-phone" class="form-control" placeholder="+973 XXXX XXXX">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="dash-cf-address">Address</label>
+          <textarea id="dash-cf-address" class="form-control" rows="2" placeholder="Street, Area, City"></textarea>
+        </div>
+        <div id="dash-cf-err" class="form-error hidden"></div>`,
+      confirmText: 'Add Customer',
+      onConfirm: async () => {
+        const name    = document.getElementById('dash-cf-name').value.trim();
+        const phone   = document.getElementById('dash-cf-phone').value.trim();
+        const address = document.getElementById('dash-cf-address').value.trim();
+        const errEl   = document.getElementById('dash-cf-err');
+
+        if (!name || !phone) {
+          errEl.textContent = 'Name and contact number are required.';
+          errEl.classList.remove('hidden');
+          throw new Error('validation');
+        }
+
+        const newCust = await Customers.create({ name, contactNumber: phone, address });
+        try {
+          await ActivityLog.write({
+            action: 'CUSTOMER_CREATED',
+            details: { customerId: newCust.id, customerName: name, phone }
+          });
+        } catch (_) {}
+        showToast(`Customer "${name}" added successfully.`, 'success');
+      }
+    });
+  }
 
   try {
-    const role = appState.user.role;
-    const uid  = appState.uid;
-
-    const today = new Date(); today.setHours(0,0,0,0);
-    const pad = n => String(n).padStart(2, '0');
-    const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-
     let allToday = [];
     let pendingAll = [];
+    let bookingsListForChart = [];
+
+    function renderSpotlight() {
+      const spotlightEl = document.getElementById('dash-spotlight-area');
+      if (!spotlightEl) return;
+
+      if (allToday.length === 0) {
+        spotlightEl.innerHTML = '';
+        return;
+      }
+
+      // Find next pending schedule for today
+      const pendingToday = allToday.filter(b => b.status === 'Pending');
+      if (pendingToday.length === 0) {
+        // All completed today!
+        spotlightEl.innerHTML = `
+          <div class="dash-spotlight-card" style="border-color:#A5D6A7;background:linear-gradient(135deg, #F1F8E9 0%, #FFFFFF 100%);">
+            <div class="dash-spotlight-bar" style="background:#2E7D32;"></div>
+            <div class="dash-spotlight-content">
+              <div class="flex items-center gap-3">
+                <span style="font-size:1.6rem;">🎉</span>
+                <div>
+                  <h3 style="font-size:1rem;color:#1B5E20;margin:0;">All schedules for today have been completed!</h3>
+                  <div class="text-xs text-secondary mt-1">Great job! All ${allToday.length} schedule(s) for today are finished.</div>
+                </div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="window._navigate && window._navigate('${role === 'salesperson' ? '/my-schedule' : '/schedules'}')">
+                View History
+              </button>
+            </div>
+          </div>`;
+        return;
+      }
+
+      const nextUp = pendingToday[0];
+      const cleanPhone = (nextUp.snapshot_contactNumber || '').replace(/\D/g, '');
+      const mapQuery = encodeURIComponent(nextUp.snapshot_address || nextUp.snapshot_name || 'Bahrain');
+
+      spotlightEl.innerHTML = `
+        <div class="dash-spotlight-card">
+          <div class="dash-spotlight-bar"></div>
+          <div class="dash-spotlight-content">
+            <div class="dash-spotlight-left">
+              <div class="dash-spotlight-time-badge">
+                <div class="dash-spotlight-time-text">${formatBookingTime(nextUp)}</div>
+                <div class="dash-spotlight-time-label">Next Up</div>
+              </div>
+              <div class="dash-spotlight-info">
+                <h3>
+                  <span>${escapeHtml(nextUp.snapshot_name || 'Customer')}</span>
+                  ${serviceBadge(nextUp.serviceType)}
+                </h3>
+                <div class="text-xs text-secondary flex items-center gap-2 flex-wrap">
+                  ${nextUp.snapshot_address ? `<span>📍 ${escapeHtml(nextUp.snapshot_address)}</span>` : ''}
+                  <span>👤 ${escapeHtml(nextUp.salespersonName || 'Unassigned')}</span>
+                </div>
+              </div>
+            </div>
+            <div class="dash-spotlight-actions">
+              ${cleanPhone ? `
+                <a href="tel:${cleanPhone}" class="btn btn-secondary btn-sm" title="Call Customer">
+                  📞 Call
+                </a>
+                <a href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color:#2E7D32;" title="WhatsApp Customer">
+                  💬 WhatsApp
+                </a>
+              ` : ''}
+              ${nextUp.snapshot_address ? `
+                <a href="https://maps.google.com/?q=${mapQuery}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="Open Map">
+                  🗺️ Map
+                </a>
+              ` : ''}
+              <button class="btn btn-primary btn-sm" id="dash-quick-complete-btn" data-id="${nextUp.id}" data-name="${escapeHtml(nextUp.snapshot_name)}">
+                ✅ Complete
+              </button>
+            </div>
+          </div>
+        </div>`;
+
+      document.getElementById('dash-quick-complete-btn')?.addEventListener('click', async (e) => {
+        const id = e.currentTarget.dataset.id;
+        const name = e.currentTarget.dataset.name;
+        try {
+          await Bookings.update(id, { status: 'Completed' });
+          try {
+            await ActivityLog.write({
+              bookingId: id,
+              action: 'STATUS_CHANGED',
+              details: { customer: name, to: 'Completed' }
+            });
+          } catch (_) {}
+          showToast(`Schedule for "${name}" marked as Completed!`, 'success');
+        } catch (err) {
+          showToast('Failed to update status: ' + (err.message || ''), 'error');
+        }
+      });
+    }
 
     function renderStats() {
       const statsEl = document.getElementById('dash-stats');
       if (!statsEl) return;
+
+      const totalCount = allToday.length;
+      const completedCount = allToday.filter(b => b.status === 'Completed').length;
+      const progressPercent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
       statsEl.innerHTML = `
-        <div class="stat-card">
+        <div class="stat-card clickable" onclick="document.getElementById('dash-upcoming-card')?.scrollIntoView({ behavior: 'smooth' })" title="Click to jump to Today's Schedules">
           <div class="stat-icon blue">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           </div>
-          <div>
-            <div class="stat-value">${allToday.length}</div>
-            <div class="stat-label">Today\'s Schedules</div>
+          <div style="flex:1;min-width:0;">
+            <div class="stat-value">${totalCount}</div>
+            <div class="stat-label">Today's Schedules</div>
+            <div class="dash-progress-wrap">
+              <div class="dash-progress-bar">
+                <div class="dash-progress-fill" style="width: ${progressPercent}%;"></div>
+              </div>
+              <div class="dash-progress-label">
+                <span>${completedCount} of ${totalCount} done</span>
+                <span>${progressPercent}%</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="stat-card">
+
+        <div class="stat-card clickable" onclick="window._navigate && window._navigate('${role === 'salesperson' ? '/my-schedule?status=Pending' : '/schedules?status=Pending'}')" title="Click to view all Pending schedules">
           <div class="stat-icon orange">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div>
             <div class="stat-value">${pendingAll.length}</div>
             <div class="stat-label">Pending Schedules</div>
+            <div class="text-xs text-secondary mt-1" style="color:var(--orange);font-weight:500;">View backlog &rarr;</div>
           </div>
         </div>
+
         <div class="stat-card">
           <div class="stat-icon green">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div>
-            <div class="stat-value">${allToday.filter(b => b.status === 'Completed').length}</div>
+            <div class="stat-value">${completedCount}</div>
             <div class="stat-label">Completed Today</div>
+            <div class="text-xs text-secondary mt-1" style="color:var(--green);font-weight:500;">
+              ${totalCount > 0 ? `${progressPercent}% Completion Rate` : 'No schedules today'}
+            </div>
           </div>
         </div>
+
         ${role !== 'salesperson' ? `
         <div class="stat-card">
           <div class="stat-icon red">
@@ -103,8 +425,19 @@ export async function renderDashboard(container, appState) {
           <div>
             <div class="stat-value">${allToday.filter(b => b.status === 'Cancelled').length}</div>
             <div class="stat-label">Cancelled Today</div>
+            <div class="text-xs text-secondary mt-1">Archived records</div>
           </div>
-        </div>` : ''}`;
+        </div>` : `
+        <div class="stat-card">
+          <div class="stat-icon navy">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div>
+            <div class="stat-value">${allToday.filter(b => b.bookedById === uid).length}</div>
+            <div class="stat-label">Self-Booked Today</div>
+            <div class="text-xs text-secondary mt-1">Direct bookings</div>
+          </div>
+        </div>`}`;
     }
 
     function renderUpcoming() {
@@ -124,9 +457,16 @@ export async function renderDashboard(container, appState) {
               <tbody>
                 ${allToday.map(b => `
                   <tr class="clickable" data-id="${b.id}" onclick="window._navigate && window._navigate('/schedules/view/${b.id}')">
-                    <td class="text-sm">${formatBookingTime(b)}</td>
-                    <td><div class="font-medium">${escapeHtml(b.snapshot_name)}</div>
-                        <div class="text-xs text-secondary">${escapeHtml(b.snapshot_contactNumber)}</div></td>
+                    <td class="text-sm" style="font-weight:600;white-space:nowrap;">${formatBookingTime(b)}</td>
+                    <td>
+                      <div class="flex items-center gap-2">
+                        <div class="avatar avatar-sm" style="width:28px;height:28px;font-size:0.68rem;background:var(--light-blue-100);color:var(--navy);flex-shrink:0;">${initials(b.snapshot_name)}</div>
+                        <div>
+                          <div class="font-medium">${escapeHtml(b.snapshot_name)}</div>
+                          <div class="text-xs text-secondary">${escapeHtml(b.snapshot_contactNumber)}</div>
+                        </div>
+                      </div>
+                    </td>
                     <td>${serviceBadge(b.serviceType)}</td>
                     <td class="text-sm">${escapeHtml(b.salespersonName || '—')}</td>
                     <td>${statusBadge(b.status)}</td>
@@ -139,14 +479,16 @@ export async function renderDashboard(container, appState) {
 
     // 1. Real-time listener for Today's schedules
     const unsubToday = role === 'salesperson'
-      ? Bookings.onMineSnapshot(uid, { dateFrom: todayStr, dateTo: todayStr }, records => {
+      ? Bookings.onMineSnapshot(uid, { dateFrom: todayDateStr, dateTo: todayDateStr }, records => {
           allToday = records;
           renderStats();
+          renderSpotlight();
           renderUpcoming();
         })
-      : Bookings.onAllSnapshot({ dateFrom: todayStr, dateTo: todayStr }, records => {
+      : Bookings.onAllSnapshot({ dateFrom: todayDateStr, dateTo: todayDateStr }, records => {
           allToday = records;
           renderStats();
+          renderSpotlight();
           renderUpcoming();
         });
     unsubs.push(unsubToday);
@@ -192,13 +534,12 @@ export async function renderDashboard(container, appState) {
         const chartStartDate = new Date();
         chartStartDate.setMonth(chartStartDate.getMonth() - 6);
         chartStartDate.setHours(0,0,0,0);
-        const dateFromStr = `${chartStartDate.getFullYear()}-${pad(chartStartDate.getMonth() + 1)}-${pad(chartStartDate.getDate())}`;
+        const dateFromStr = `${chartStartDate.getFullYear()}-${padNum(chartStartDate.getMonth() + 1)}-${padNum(chartStartDate.getDate())}`;
 
-        let bookingsList = [];
         if (role === 'salesperson') {
-          bookingsList = await Bookings.getMine(uid, { dateFrom: dateFromStr });
+          bookingsListForChart = await Bookings.getMine(uid, { dateFrom: dateFromStr });
         } else {
-          bookingsList = await Bookings.getAll({ dateFrom: dateFromStr });
+          bookingsListForChart = await Bookings.getAll({ dateFrom: dateFromStr });
         }
 
         // Daily (last 7 days)
@@ -207,10 +548,10 @@ export async function renderDashboard(container, appState) {
         for (let i = 6; i >= 0; i--) {
           const d = new Date();
           d.setDate(d.getDate() - i);
-          const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-          const count = bookingsList.filter(b => {
+          const dateStr = `${d.getFullYear()}-${padNum(d.getMonth() + 1)}-${padNum(d.getDate())}`;
+          const count = bookingsListForChart.filter(b => {
             const bDate = b.scheduledDate && b.scheduledDate.toDate ? b.scheduledDate.toDate() : new Date(b.scheduledDate);
-            const bDateStr = `${bDate.getFullYear()}-${pad(bDate.getMonth() + 1)}-${pad(bDate.getDate())}`;
+            const bDateStr = `${bDate.getFullYear()}-${padNum(bDate.getMonth() + 1)}-${padNum(bDate.getDate())}`;
             return bDateStr === dateStr;
           }).length;
           dailyData.push(count);
@@ -227,7 +568,7 @@ export async function renderDashboard(container, appState) {
           const end = new Date();
           end.setDate(end.getDate() - i * 7);
           end.setHours(23,59,59,999);
-          const count = bookingsList.filter(b => {
+          const count = bookingsListForChart.filter(b => {
             const bDate = b.scheduledDate && b.scheduledDate.toDate ? b.scheduledDate.toDate() : new Date(b.scheduledDate);
             return bDate >= start && bDate <= end;
           }).length;
@@ -245,13 +586,18 @@ export async function renderDashboard(container, appState) {
           d.setMonth(d.getMonth() - i);
           const year = d.getFullYear();
           const month = d.getMonth();
-          const count = bookingsList.filter(b => {
+          const count = bookingsListForChart.filter(b => {
             const bDate = b.scheduledDate && b.scheduledDate.toDate ? b.scheduledDate.toDate() : new Date(b.scheduledDate);
             return bDate.getFullYear() === year && bDate.getMonth() === month;
           }).length;
           monthlyData.push(count);
           monthlyLabels.push(d.toLocaleDateString('en-GB', { month: 'short' }));
         }
+
+        // Service Distribution counts for the entire loaded dataset
+        const pickupCount = bookingsListForChart.filter(b => b.serviceType === 'Pickup').length;
+        const deliveryCount = bookingsListForChart.filter(b => b.serviceType === 'Delivery').length;
+        const customCount = bookingsListForChart.filter(b => b.serviceType === 'Custom').length;
 
         function updateChart(type) {
           const chartEl = document.getElementById('dash-chart');
@@ -263,13 +609,23 @@ export async function renderDashboard(container, appState) {
               else btn.classList.remove('active');
             }
           });
+
+          let svgContent = '';
           if (type === 'daily') {
-            chartEl.innerHTML = generateLineChartSVG(dailyData, dailyLabels);
+            svgContent = generateLineChartSVG(dailyData, dailyLabels);
           } else if (type === 'weekly') {
-            chartEl.innerHTML = generateLineChartSVG(weeklyData, weeklyLabels);
+            svgContent = generateLineChartSVG(weeklyData, weeklyLabels);
           } else {
-            chartEl.innerHTML = generateLineChartSVG(monthlyData, monthlyLabels);
+            svgContent = generateLineChartSVG(monthlyData, monthlyLabels);
           }
+
+          chartEl.innerHTML = `
+            ${svgContent}
+            <div class="dash-dist-tags">
+              <div class="dash-dist-tag"><span class="dash-dist-dot pickup"></span> <strong>${pickupCount}</strong> Pickups</div>
+              <div class="dash-dist-tag"><span class="dash-dist-dot delivery"></span> <strong>${deliveryCount}</strong> Deliveries</div>
+              <div class="dash-dist-tag"><span class="dash-dist-dot custom"></span> <strong>${customCount}</strong> Custom</div>
+            </div>`;
         }
 
         document.getElementById('chart-tab-daily')?.addEventListener('click', () => updateChart('daily'));
@@ -292,8 +648,12 @@ export async function renderDashboard(container, appState) {
     document.getElementById('dash-notif').innerHTML = '';
   }
 
-  // Return cleanup function to unsubscribe from all listeners when navigating away
+  // Return cleanup function to unsubscribe and clear interval when navigating away
   return () => {
+    if (clockTimer) {
+      clearInterval(clockTimer);
+      clockTimer = null;
+    }
     unsubs.forEach(fn => { if (typeof fn === 'function') fn(); });
     unsubs = [];
   };
@@ -365,15 +725,15 @@ function generateLineChartSVG(data, labels) {
       <g class="chart-point-group" style="cursor:pointer;">
         <!-- Vertical guide line on hover -->
         <line class="chart-hover-line" x1="${p.x.toFixed(1)}" y1="${padTop}" x2="${p.x.toFixed(1)}" y2="${chartBottom}" stroke="rgba(25,118,210,0.18)" stroke-width="1" stroke-dasharray="2,2" />
-        <!-- Value text above dot (smaller, tiny) -->
+        <!-- Value text above dot -->
         <text class="point-val" x="${p.x.toFixed(1)}" y="${(p.y - 6).toFixed(1)}" text-anchor="middle" font-size="0.58rem" font-weight="600" fill="${p.val > 0 ? 'var(--navy)' : 'var(--text-hint)'}">${p.val}</text>
-        <!-- Outer glowing dot (smaller, tiny) -->
-        <circle class="point-circle" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.75" fill="#0D47A1" stroke="#FFFFFF" stroke-width="1.5" />
+        <!-- Outer glowing dot -->
+        <circle class="point-circle" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="#0D47A1" stroke="#FFFFFF" stroke-width="1.5" />
         <!-- Hover target -->
         <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="16" fill="transparent">
           <title>${escapeHtml(p.label)}: ${p.val} schedule(s)</title>
         </circle>
-        <!-- X-axis date label (smaller, tiny) -->
+        <!-- X-axis date label -->
         <text x="${p.x.toFixed(1)}" y="${(height - 8).toFixed(1)}" text-anchor="middle" font-size="0.58rem" font-weight="500" fill="var(--text-secondary)">${escapeHtml(p.label)}</text>
       </g>
     `;
@@ -395,7 +755,7 @@ function generateLineChartSVG(data, labels) {
         </filter>
       </defs>
 
-      <!-- Horizontal Grid Lines & Y-Labels (smaller, tiny) -->
+      <!-- Horizontal Grid Lines & Y-Labels -->
       <line x1="${padLeft}" y1="${padTop}" x2="${width - padRight}" y2="${padTop}" stroke="var(--border-gray)" stroke-width="1" stroke-dasharray="3,3" />
       <text x="${padLeft - 5}" y="${padTop + 3.5}" text-anchor="end" font-size="0.55rem" font-weight="500" fill="var(--text-hint)">${maxVal}</text>
 
@@ -408,7 +768,7 @@ function generateLineChartSVG(data, labels) {
       <!-- Gradient Area Fill -->
       ${areaD ? `<path d="${areaD}" fill="url(#lineAreaGradient)" />` : ''}
 
-      <!-- Line Stroke with Shadow (thinner: 1.8px) -->
+      <!-- Line Stroke with Shadow -->
       <path d="${lineD}" fill="none" stroke="url(#lineStrokeGradient)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineShadow)" />
 
       <!-- Data Points & Labels -->

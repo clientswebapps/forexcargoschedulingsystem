@@ -5,7 +5,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'forex-cargo-v1.1.3';
+const CACHE_NAME = 'forex-cargo-v1.2.0';
 
 const STATIC_ASSETS = [
   '/',
@@ -18,6 +18,7 @@ const STATIC_ASSETS = [
   '/images/apple-touch-icon.png',
   '/css/style.css',
   '/css/print.css',
+  '/js/firebase-config.js',
   '/js/app.js',
   '/js/db.js',
   '/js/utils.js',

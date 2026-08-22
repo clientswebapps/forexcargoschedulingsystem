@@ -62,7 +62,14 @@ export async function renderPrint(container, appState, queryString = '') {
     <div id="print-document">
       <!-- Print Header (visible in print and in preview) -->
       <div class="print-header" style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding-bottom:16px;border-bottom:3px solid var(--navy);">
-        <div style="font-size:1.3rem;font-weight:700;color:var(--navy);">Forex Cargo Schedule</div>
+        <div>
+          <div style="font-size:1.3rem;font-weight:700;color:var(--navy);">Forex Cargo Schedule</div>
+          <div style="font-size:0.88rem;color:var(--text-secondary);margin-top:3px;">
+            Date: <strong>${dateRange}</strong>
+            ${scheduledPeriod ? ` &nbsp;·&nbsp; Period: <strong>${escapeHtml(scheduledPeriod)} Run</strong>` : ''}
+            ${status ? ` &nbsp;·&nbsp; Status: <strong>${escapeHtml(status)}</strong>` : ''}
+          </div>
+        </div>
         <div style="text-align:right;">
           <div style="font-size:0.8rem;color:var(--medium-gray);">Printed on: ${today}</div>
           ${effectiveSalesName ? `<div style="font-size:1.1rem;font-weight:600;color:var(--navy);margin-top:4px;">Salesperson: ${escapeHtml(effectiveSalesName)}</div>` : ''}
