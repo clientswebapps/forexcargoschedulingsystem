@@ -5,7 +5,7 @@
  */
 'use strict';
 
-const CACHE_NAME = 'forex-cargo-v1.0.3';
+const CACHE_NAME = 'forex-cargo-v1.0.4';
 
 const STATIC_ASSETS = [
   '/',
