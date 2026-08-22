@@ -207,22 +207,26 @@ export function showModal({ title, body, confirmText = 'Confirm', cancelText = '
         </div>
         <div class="modal-body">${body}</div>
         <div class="modal-footer">
-          <button class="btn btn-secondary" id="modal-cancel-btn">${escapeHtml(cancelText)}</button>
-          <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="modal-confirm-btn">${escapeHtml(confirmText)}</button>
+          ${cancelText ? `<button class="btn btn-secondary" id="modal-cancel-btn">${escapeHtml(cancelText)}</button>` : ''}
+          ${confirmText ? `<button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="modal-confirm-btn">${escapeHtml(confirmText)}</button>` : ''}
         </div>
       </div>
     </div>`;
   const overlay = container.querySelector('#modal-overlay');
   const close = () => closeModal();
-  document.getElementById('modal-close-btn').addEventListener('click', close);
-  document.getElementById('modal-cancel-btn').addEventListener('click', close);
+  document.getElementById('modal-close-btn')?.addEventListener('click', close);
+  if (cancelText) {
+    document.getElementById('modal-cancel-btn')?.addEventListener('click', close);
+  }
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
   if (onConfirm) {
-    document.getElementById('modal-confirm-btn').addEventListener('click', async () => {
+    document.getElementById('modal-confirm-btn')?.addEventListener('click', async () => {
       const btn = document.getElementById('modal-confirm-btn');
       btn.disabled = true;
       try { await onConfirm(); close(); } catch (err) { btn.disabled = false; }
     });
+  } else if (confirmText) {
+    document.getElementById('modal-confirm-btn')?.addEventListener('click', close);
   }
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('modal-visible')));
 }
