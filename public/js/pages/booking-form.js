@@ -10,7 +10,7 @@ import { showToast, loadingHTML, errorHTML, escapeHtml, debounce, inputToTimesta
  * If bookingId is provided, it opens in edit mode.
  * onSaved callback is called after successful save (to refresh lists).
  */
-export async function openScheduleModal(appState, bookingId = null, onSaved = null) {
+export async function openScheduleModal(appState, bookingId = null, onSaved = null, prefillCustomer = null) {
   const isEdit = !!bookingId;
   const role   = appState.user.role;
   const uid    = appState.uid;
@@ -60,6 +60,13 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
         container.querySelector('.modal-body').innerHTML = errorHTML('You do not have permission to edit this schedule.');
         return;
       }
+    } else if (prefillCustomer) {
+      existingBooking = {
+        snapshot_name: prefillCustomer.name || '',
+        snapshot_contactNumber: prefillCustomer.contactNumber || '',
+        snapshot_address: prefillCustomer.address || '',
+        customerId: prefillCustomer.id || '',
+      };
     }
   } catch (err) {
     console.error('Error loading schedule form data:', err);

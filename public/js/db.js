@@ -165,6 +165,10 @@ export const Customers = {
     await db.collection('customers').doc(id).update(updates);
   },
 
+  async delete(id) {
+    await db.collection('customers').doc(id).delete();
+  },
+
   onSnapshot(callback, errorCallback) {
     return db.collection('customers').orderBy('name').onSnapshot(
       snap => callback(collData(snap)),
