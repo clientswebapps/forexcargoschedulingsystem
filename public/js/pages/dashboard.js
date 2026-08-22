@@ -33,7 +33,7 @@ export async function renderDashboard(container, appState) {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap;" id="dash-grid">
+    <div class="dash-grid" id="dash-grid">
       <div class="card" id="dash-upcoming-card">
         <div class="card-header">
           <div>
@@ -50,14 +50,6 @@ export async function renderDashboard(container, appState) {
         <div id="dash-notif">${loadingHTML()}</div>
       </div>
     </div>`;
-
-  // Responsive grid
-  const grid = document.getElementById('dash-grid');
-  const setGrid = () => {
-    grid.style.gridTemplateColumns = window.innerWidth < 768 ? '1fr' : '1fr 1fr';
-  };
-  setGrid();
-  window.addEventListener('resize', setGrid);
 
   let unsubs = [];
 
@@ -304,7 +296,6 @@ export async function renderDashboard(container, appState) {
   return () => {
     unsubs.forEach(fn => { if (typeof fn === 'function') fn(); });
     unsubs = [];
-    window.removeEventListener('resize', setGrid);
   };
 }
 
