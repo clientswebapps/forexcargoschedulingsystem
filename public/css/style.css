@@ -943,3 +943,16 @@ tbody td {
   font-weight: 700;
   fill: #0D47A1;
 }
+
+/* ── Presence Pulse Animation ────────────────────────────── */
+@keyframes presencePulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(46, 125, 50, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(46, 125, 50, 0);
+  }
+}

@@ -14,8 +14,10 @@ import { renderBookingDetail } from './pages/booking-detail.js';
 import { renderMySchedule }    from './pages/my-schedule.js';
 import { renderNotifications } from './pages/notifications.js';
 import { renderActivityLog }   from './pages/activity-log.js';
+import { renderStaffActivity }  from './pages/staff-activity.js';
 import { renderPrint }         from './pages/print.js';
-import { Users, Notifications } from './db.js';
+import { Users, Notifications, ActivityLog } from './db.js';
+import { initPresence, stopPresence, updatePresenceRoute } from './presence.js';
 import { showToast, showModal, closeModal, initials, roleLabel, icons, escapeHtml } from './utils.js';
 
 /* ── App State ──────────────────────────────────────────── */
@@ -111,6 +113,11 @@ function showApp() {
   setupTopbar();
   setupMobileNav();
   refreshNotifBadge();
+  initPresence(state.uid);
+
+  try {
+    ActivityLog.write({ action: 'USER_LOGIN', details: { email: state.user?.email || state.authUser?.email } });
+  } catch (_) {}
 
   // Initial route
   handleRoute(location.hash || '#/');
@@ -150,7 +157,7 @@ function handleRoute(hash) {
   const role = state.user.role;
 
   // Guard: salesperson cannot access admin/office pages
-  const adminOfficeRoutes = ['/customers', '/users', '/activity-log'];
+  const adminOfficeRoutes = ['/customers', '/users', '/activity-log', '/staff-activity'];
   if (role === 'salesperson') {
     if (adminOfficeRoutes.includes(base)) {
       navigate('/my-schedule');
@@ -165,6 +172,12 @@ function handleRoute(hash) {
     navigate('/');
     return;
   }
+  if (base === '/staff-activity' && role !== 'super_admin') {
+    navigate('/');
+    return;
+  }
+
+  updatePresenceRoute(location.hash || '#/');
 
   let title = 'Dashboard';
   let cleanupFn = null;
@@ -199,6 +212,9 @@ function handleRoute(hash) {
   } else if (path === '/activity-log') {
     title = 'Activity Log';
     cleanupFn = renderActivityLog($content, state);
+  } else if (path === '/staff-activity') {
+    title = 'Staff Activity & Live Presence';
+    cleanupFn = renderStaffActivity($content, state);
   } else if (path === '/print') {
     title = 'Print Schedule';
     cleanupFn = renderPrint($content, state, query || '');
@@ -289,6 +305,10 @@ function getNavItems(role) {
     items.splice(3, 0, { route: '/users', label: 'Users', icon: icons.users });
   }
 
+  if (role === 'super_admin') {
+    items.splice(4, 0, { route: '/staff-activity', label: 'Staff Activity', icon: icons.activity });
+  }
+
   return items;
 }
 
@@ -369,6 +389,10 @@ async function signOut() {
       notifBadgeUnsub();
       notifBadgeUnsub = null;
     }
+    try {
+      await ActivityLog.write({ action: 'USER_LOGOUT', details: { email: state.user?.email || state.authUser?.email } });
+    } catch (_) {}
+    await stopPresence();
     await firebase.auth().signOut();
     state.uid  = null;
     state.user = null;
@@ -448,6 +472,12 @@ function showChangePasswordModal() {
         const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPass);
         await user.reauthenticateWithCredential(credential);
         await user.updatePassword(newPass);
+        try {
+          await ActivityLog.write({
+            action: 'PASSWORD_CHANGED',
+            details: { email: user.email }
+          });
+        } catch (_) {}
         showToast('Password updated successfully.', 'success');
       } catch (err) {
         console.error('Password change error:', err);
@@ -530,10 +560,22 @@ function showChangeEmailModal() {
 
         if (typeof user.verifyBeforeUpdateEmail === 'function') {
           await user.verifyBeforeUpdateEmail(newEmail);
+          try {
+            await ActivityLog.write({
+              action: 'EMAIL_CHANGED',
+              details: { oldEmail: state.user.email, newEmail, status: 'Verification Link Sent' }
+            });
+          } catch (_) {}
           showToast(`Verification email sent to ${newEmail}! Click the link in your inbox to confirm.`, 'info');
         } else {
           await user.updateEmail(newEmail);
           await Users.update(user.uid, { email: newEmail });
+          try {
+            await ActivityLog.write({
+              action: 'EMAIL_CHANGED',
+              details: { oldEmail: state.user.email, newEmail }
+            });
+          } catch (_) {}
           state.user.email = newEmail;
           updateUserInfo();
           showToast('Email address updated successfully.', 'success');
@@ -588,8 +630,15 @@ function showChangeNameModal() {
       }
 
       try {
+        const oldName = state.user.displayName;
         await user.updateProfile({ displayName: newName });
         await Users.update(user.uid, { displayName: newName });
+        try {
+          await ActivityLog.write({
+            action: 'PROFILE_NAME_CHANGED',
+            details: { oldName, newName }
+          });
+        } catch (_) {}
         state.user.displayName = newName;
         updateUserInfo();
         showToast('Display name updated successfully.', 'success');

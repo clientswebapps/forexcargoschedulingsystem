@@ -3,7 +3,7 @@
  * Creates users via Firebase Auth REST API + Firestore
  */
 'use strict';
-import { Users, AuthREST } from '../db.js';
+import { Users, AuthREST, ActivityLog } from '../db.js';
 import { showToast, showModal, roleBadge, roleLabel, initials, loadingHTML, errorHTML, escapeHtml, btnLoading } from '../utils.js';
 
 export async function renderUsers(container, appState) {
@@ -133,6 +133,12 @@ export async function renderUsers(container, appState) {
       danger: currentlyActive,
       onConfirm: async () => {
         await Users.update(uid, { isActive: !currentlyActive });
+        try {
+          await ActivityLog.write({
+            action: currentlyActive ? 'USER_DEACTIVATED' : 'USER_ACTIVATED',
+            details: { targetUserId: uid, targetUserName: user?.displayName || uid, email: user?.email }
+          });
+        } catch (_) {}
         showToast(`User ${action}d successfully.`, 'success');
         load();
       }
@@ -186,6 +192,12 @@ export async function renderUsers(container, appState) {
 
         if (isEdit) {
           await Users.update(user.id, { displayName: name, role: roleVal });
+          try {
+            await ActivityLog.write({
+              action: 'USER_UPDATED',
+              details: { targetUserId: user.id, targetUserName: name, role: roleVal, email: user.email }
+            });
+          } catch (_) {}
           showToast('User updated successfully.', 'success');
         } else {
           const email    = document.getElementById('uf-email').value.trim();
@@ -199,6 +211,12 @@ export async function renderUsers(container, appState) {
           await AuthREST.updateDisplayName(idToken, name);
           // Create Firestore document
           await Users.create(newUid, { displayName: name, email, role: roleVal });
+          try {
+            await ActivityLog.write({
+              action: 'USER_CREATED',
+              details: { targetUserId: newUid, targetUserName: name, role: roleVal, email }
+            });
+          } catch (_) {}
           showToast('User created successfully.', 'success');
         }
       }

@@ -2,7 +2,7 @@
  * customers.js — Customer Directory page
  */
 'use strict';
-import { Customers } from '../db.js';
+import { Customers, ActivityLog } from '../db.js';
 import { showToast, showModal, loadingHTML, errorHTML, escapeHtml, debounce, initials, btnLoading } from '../utils.js';
 
 export async function renderCustomers(container, appState) {
@@ -145,9 +145,21 @@ export async function renderCustomers(container, appState) {
 
         if (isEdit) {
           await Customers.update(customer.id, { name, contactNumber: phone, address });
+          try {
+            await ActivityLog.write({
+              action: 'CUSTOMER_UPDATED',
+              details: { customerId: customer.id, customerName: name, phone }
+            });
+          } catch (_) {}
           showToast('Customer updated.', 'success');
         } else {
-          await Customers.create({ name, contactNumber: phone, address });
+          const newCust = await Customers.create({ name, contactNumber: phone, address });
+          try {
+            await ActivityLog.write({
+              action: 'CUSTOMER_CREATED',
+              details: { customerId: newCust.id, customerName: name, phone }
+            });
+          } catch (_) {}
           showToast('Customer added.', 'success');
         }
       }
