@@ -346,22 +346,32 @@ export async function renderDashboard(container, appState) {
           </div>
         </div>`;
 
-      document.getElementById('dash-quick-complete-btn')?.addEventListener('click', async (e) => {
+      document.getElementById('dash-quick-complete-btn')?.addEventListener('click', (e) => {
         const id = e.currentTarget.dataset.id;
         const name = e.currentTarget.dataset.name;
-        try {
-          await Bookings.update(id, { status: 'Completed' });
-          try {
-            await ActivityLog.write({
-              bookingId: id,
-              action: 'STATUS_CHANGED',
-              details: { customer: name, to: 'Completed' }
-            });
-          } catch (_) {}
-          showToast(`Schedule for "${name}" marked as Completed!`, 'success');
-        } catch (err) {
-          showToast('Failed to update status: ' + (err.message || ''), 'error');
-        }
+
+        showModal({
+          title: 'Mark Schedule as Completed',
+          body: `<p>Are you sure you want to mark the schedule for <strong>${escapeHtml(name)}</strong> as <strong>Completed</strong>?</p>`,
+          confirmText: 'Mark Completed',
+          cancelText: 'Cancel',
+          onConfirm: async () => {
+            try {
+              await Bookings.update(id, { status: 'Completed' });
+              try {
+                await ActivityLog.write({
+                  bookingId: id,
+                  action: 'STATUS_CHANGED',
+                  details: { customer: name, to: 'Completed' }
+                });
+              } catch (_) {}
+              showToast(`Schedule for "${name}" marked as Completed!`, 'success');
+            } catch (err) {
+              showToast('Failed to update status: ' + (err.message || ''), 'error');
+              throw err;
+            }
+          }
+        });
       });
     }
 
