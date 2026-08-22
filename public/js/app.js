@@ -261,17 +261,13 @@ function buildNav() {
       </li>`;
   }).join('');
 
-  // Download App, Change Name, Change Email, Change Password, and Logout at bottom
+  // Download App, Change Email, Change Password, and Logout at bottom
   const footer = document.getElementById('sidebar-footer');
   if (footer) {
     footer.innerHTML = `
       <button class="nav-item download-app-btn" id="download-app-nav-btn" title="Download / Install App" style="color:#64B5F6;margin-bottom:2px;font-weight:500;">
         <span class="nav-icon">${icons.download}</span>
         <span>Download App</span>
-      </button>
-      <button class="nav-item" id="change-name-nav-btn" title="Change Name" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
-        <span class="nav-icon">${icons.user}</span>
-        <span>Change Name</span>
       </button>
       <button class="nav-item" id="change-email-nav-btn" title="Change Email" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
         <span class="nav-icon">${icons.mail}</span>
@@ -286,7 +282,6 @@ function buildNav() {
         <span>Sign Out</span>
       </button>`;
     footer.querySelector('#download-app-nav-btn')?.addEventListener('click', promptInstallApp);
-    footer.querySelector('#change-name-nav-btn')?.addEventListener('click', showChangeNameModal);
     footer.querySelector('#change-email-nav-btn')?.addEventListener('click', showChangeEmailModal);
     footer.querySelector('#change-pwd-nav-btn')?.addEventListener('click', showChangePasswordModal);
     footer.querySelector('#logout-nav-btn')?.addEventListener('click', signOut);
