@@ -128,13 +128,13 @@ ul { list-style: none; }
 .loading-screen.fade-out { opacity: 0; pointer-events: none; }
 .loading-content { text-align: center; color: var(--text-white); }
 .loading-logo {
-  width: 76px; height: 76px;
+  width: 90px; height: 90px;
   background: #FFFFFF;
-  border-radius: 16px;
-  padding: 10px;
+  border-radius: 20px;
+  padding: 12px;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 24px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.28);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.35), 0 0 0 4px rgba(255,255,255,0.15);
 }
 .loading-spinner {
   width: 36px; height: 36px;
