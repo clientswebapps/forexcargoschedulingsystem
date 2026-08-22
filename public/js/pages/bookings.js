@@ -127,10 +127,23 @@ export async function renderBookings(container, appState) {
       unsubscribe = null;
     }
 
-    const rangeType = document.getElementById('f-date-range')?.value || 'today';
-    const customFrom = document.getElementById('f-date-from')?.value || '';
-    const customTo = document.getElementById('f-date-to')?.value || '';
-    const { dateFrom, dateTo } = getDateRange(rangeType, customFrom, customTo);
+    const searchInput = document.getElementById('f-search');
+    const searchVal = (searchInput?.value || '').trim();
+    const hasSearch = searchVal.length > 0;
+
+    let dateFrom, dateTo;
+    if (hasSearch) {
+      // EXCEPTION: When search bar is used, search across ALL dates / all time
+      dateFrom = undefined;
+      dateTo   = undefined;
+    } else {
+      const rangeType = document.getElementById('f-date-range')?.value || 'today';
+      const customFrom = document.getElementById('f-date-from')?.value || '';
+      const customTo = document.getElementById('f-date-to')?.value || '';
+      const range = getDateRange(rangeType, customFrom, customTo);
+      dateFrom = range.dateFrom;
+      dateTo   = range.dateTo;
+    }
 
     const fStatus   = document.getElementById('f-status')?.value;
     const fType     = document.getElementById('f-type')?.value;
@@ -170,13 +183,35 @@ export async function renderBookings(container, appState) {
 
   function applySearch() {
     const searchInput = document.getElementById('f-search');
-    const q = (searchInput?.value || '').toLowerCase();
-    filtered = q
-      ? allBookings.filter(b =>
-          (b.snapshot_name || '').toLowerCase().includes(q) ||
-          (b.snapshot_contactNumber || '').includes(q)
-        )
+    const rawQ = (searchInput?.value || '').trim().toLowerCase();
+    const cleanQ = rawQ.replace(/[\s\-\+\(\)]/g, '');
+
+    filtered = rawQ
+      ? allBookings.filter(b => {
+          const name = (b.snapshot_name || '').toLowerCase();
+          const phone = (b.snapshot_contactNumber || '').toLowerCase();
+          const cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
+          const address = (b.snapshot_address || '').toLowerCase();
+          const id = (b.id || '').toLowerCase();
+          const service = (b.serviceType || '').toLowerCase();
+          const details = (b.serviceDetails || '').toLowerCase();
+          const notes = (b.notes || '').toLowerCase();
+          const sales = (b.salespersonName || '').toLowerCase();
+          const bookedBy = (b.bookedByName || '').toLowerCase();
+
+          return name.includes(rawQ) ||
+                 phone.includes(rawQ) ||
+                 (cleanQ && cleanPhone.includes(cleanQ)) ||
+                 address.includes(rawQ) ||
+                 id.includes(rawQ) ||
+                 service.includes(rawQ) ||
+                 details.includes(rawQ) ||
+                 notes.includes(rawQ) ||
+                 sales.includes(rawQ) ||
+                 bookedBy.includes(rawQ);
+        })
       : allBookings;
+
     renderTable(filtered);
   }
 
@@ -290,7 +325,19 @@ export async function renderBookings(container, appState) {
   // Event bindings
   const filterIds = ['f-status','f-type','f-salesperson','f-booked-by','f-date-from','f-date-to','f-period'];
   filterIds.forEach(id => document.getElementById(id)?.addEventListener('change', load));
-  document.getElementById('f-search')?.addEventListener('input', debounce(applySearch, 250));
+  
+  let prevHasSearch = false;
+  const onSearchInput = () => {
+    const q = (document.getElementById('f-search')?.value || '').trim();
+    const hasSearch = q.length > 0;
+    if (hasSearch !== prevHasSearch) {
+      prevHasSearch = hasSearch;
+      load(); // Reload query across all dates
+    } else {
+      applySearch(); // In-memory filter
+    }
+  };
+  document.getElementById('f-search')?.addEventListener('input', debounce(onSearchInput, 200));
 
   // Date Range dropdown change
   document.getElementById('f-date-range')?.addEventListener('change', (e) => {

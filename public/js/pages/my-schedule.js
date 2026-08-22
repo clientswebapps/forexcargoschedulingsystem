@@ -69,6 +69,10 @@ export async function renderMySchedule(container, appState) {
           </select>
         </div>
 
+        <div class="filter-group" style="flex:2;min-width:180px;">
+          <div class="filter-label">Search (customer name or number)</div>
+          <input type="text" id="ms-search" class="filter-control" placeholder="Search name or contact…">
+        </div>
         <div class="filter-group">
           <div class="filter-label">Created By</div>
           <input type="text" id="ms-booked-by" class="filter-control" placeholder="Search created by…">
@@ -95,10 +99,25 @@ export async function renderMySchedule(container, appState) {
       unsubscribe = null;
     }
 
-    const rangeType = document.getElementById('ms-date-range')?.value || 'today';
-    const customFrom = document.getElementById('ms-date-from')?.value || '';
-    const customTo = document.getElementById('ms-date-to')?.value || '';
-    const { dateFrom, dateTo } = getDateRange(rangeType, customFrom, customTo);
+    const searchInput = document.getElementById('ms-search');
+    const bookedByInput = document.getElementById('ms-booked-by');
+    const searchVal = (searchInput?.value || '').trim();
+    const bookedByVal = (bookedByInput?.value || '').trim();
+    const hasSearch = searchVal.length > 0 || bookedByVal.length > 0;
+
+    let dateFrom, dateTo;
+    if (hasSearch) {
+      // EXCEPTION: When search bar is used, search across ALL dates / all time
+      dateFrom = undefined;
+      dateTo   = undefined;
+    } else {
+      const rangeType = document.getElementById('ms-date-range')?.value || 'today';
+      const customFrom = document.getElementById('ms-date-from')?.value || '';
+      const customTo = document.getElementById('ms-date-to')?.value || '';
+      const range = getDateRange(rangeType, customFrom, customTo);
+      dateFrom = range.dateFrom;
+      dateTo   = range.dateTo;
+    }
 
     const status = document.getElementById('ms-status')?.value;
     const period = document.getElementById('ms-period')?.value;
@@ -132,11 +151,38 @@ export async function renderMySchedule(container, appState) {
   }
 
   function applySearch() {
-    const searchInput = document.getElementById('ms-booked-by');
-    const q = (searchInput?.value || '').toLowerCase();
-    const filtered = q
-      ? allBookings.filter(b => (b.bookedByName || '').toLowerCase().includes(q))
-      : allBookings;
+    const searchInput = document.getElementById('ms-search');
+    const bookedByInput = document.getElementById('ms-booked-by');
+    const rawQ = (searchInput?.value || '').trim().toLowerCase();
+    const cleanQ = rawQ.replace(/[\s\-\+\(\)]/g, '');
+    const bookedByQ = (bookedByInput?.value || '').trim().toLowerCase();
+
+    filtered = allBookings.filter(b => {
+      if (bookedByQ && !(b.bookedByName || '').toLowerCase().includes(bookedByQ)) {
+        return false;
+      }
+      if (rawQ) {
+        const name = (b.snapshot_name || '').toLowerCase();
+        const phone = (b.snapshot_contactNumber || '').toLowerCase();
+        const cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
+        const address = (b.snapshot_address || '').toLowerCase();
+        const id = (b.id || '').toLowerCase();
+        const service = (b.serviceType || '').toLowerCase();
+        const details = (b.serviceDetails || '').toLowerCase();
+        const notes = (b.notes || '').toLowerCase();
+
+        return name.includes(rawQ) ||
+               phone.includes(rawQ) ||
+               (cleanQ && cleanPhone.includes(cleanQ)) ||
+               address.includes(rawQ) ||
+               id.includes(rawQ) ||
+               service.includes(rawQ) ||
+               details.includes(rawQ) ||
+               notes.includes(rawQ);
+      }
+      return true;
+    });
+
     renderTable(filtered);
   }
 
@@ -206,7 +252,21 @@ export async function renderMySchedule(container, appState) {
   document.getElementById('ms-period')?.addEventListener('change', load);
   document.getElementById('ms-date-from')?.addEventListener('change', load);
   document.getElementById('ms-date-to')?.addEventListener('change', load);
-  document.getElementById('ms-booked-by')?.addEventListener('input', debounce(applySearch, 250));
+
+  let prevHasMsSearch = false;
+  const onMsSearchInput = () => {
+    const q1 = (document.getElementById('ms-search')?.value || '').trim();
+    const q2 = (document.getElementById('ms-booked-by')?.value || '').trim();
+    const hasSearch = q1.length > 0 || q2.length > 0;
+    if (hasSearch !== prevHasMsSearch) {
+      prevHasMsSearch = hasSearch;
+      load(); // Reload query across all dates
+    } else {
+      applySearch(); // In-memory filter
+    }
+  };
+  document.getElementById('ms-search')?.addEventListener('input', debounce(onMsSearchInput, 200));
+  document.getElementById('ms-booked-by')?.addEventListener('input', debounce(onMsSearchInput, 200));
 
   // Date Range change
   document.getElementById('ms-date-range')?.addEventListener('change', (e) => {
@@ -219,6 +279,8 @@ export async function renderMySchedule(container, appState) {
   });
 
   document.getElementById('ms-clear-btn')?.addEventListener('click', () => {
+    document.getElementById('ms-search').value = '';
+    document.getElementById('ms-booked-by').value = '';
     document.getElementById('ms-date-range').value = 'today';
     document.getElementById('ms-date-from').value = '';
     document.getElementById('ms-date-to').value   = '';
@@ -226,7 +288,6 @@ export async function renderMySchedule(container, appState) {
     document.getElementById('ms-custom-to-group').style.display = 'none';
     document.getElementById('ms-status').value    = '';
     document.getElementById('ms-period').value    = '';
-    document.getElementById('ms-booked-by').value = '';
     load();
   });
 
