@@ -93,6 +93,7 @@ export async function renderMySchedule(container, appState) {
     </div>`;
 
   let allBookings = [];
+  let filtered    = [];
   let unsubscribe = null;
 
   function load() {

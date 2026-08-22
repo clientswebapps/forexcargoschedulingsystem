@@ -168,11 +168,9 @@ export async function renderDashboard(container, appState) {
       }
 
       const nextUp = pendingToday[0];
-      const cleanPhone = (nextUp.snapshot_contactNumber || '').replace(/\D/g, '');
-      const mapQuery = encodeURIComponent(nextUp.snapshot_address || nextUp.snapshot_name || 'Bahrain');
 
       spotlightEl.innerHTML = `
-        <div class="dash-spotlight-card">
+        <div class="dash-spotlight-card clickable" onclick="window._navigate && window._navigate('/schedules/view/${nextUp.id}')" title="Click to view schedule details">
           <div class="dash-spotlight-bar"></div>
           <div class="dash-spotlight-content">
             <div class="dash-spotlight-left">
@@ -191,54 +189,8 @@ export async function renderDashboard(container, appState) {
                 </div>
               </div>
             </div>
-            <div class="dash-spotlight-actions">
-              ${cleanPhone ? `
-                <a href="tel:${cleanPhone}" class="btn btn-secondary btn-sm" title="Call Customer">
-                  📞 Call
-                </a>
-                <a href="https://wa.me/${cleanPhone}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" style="color:#2E7D32;" title="WhatsApp Customer">
-                  💬 WhatsApp
-                </a>
-              ` : ''}
-              ${nextUp.snapshot_address ? `
-                <a href="https://maps.google.com/?q=${mapQuery}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" title="Open Map">
-                  🗺️ Map
-                </a>
-              ` : ''}
-              <button class="btn btn-primary btn-sm" id="dash-quick-complete-btn" data-id="${nextUp.id}" data-name="${escapeHtml(nextUp.snapshot_name)}">
-                ✅ Complete
-              </button>
-            </div>
           </div>
         </div>`;
-
-      document.getElementById('dash-quick-complete-btn')?.addEventListener('click', (e) => {
-        const id = e.currentTarget.dataset.id;
-        const name = e.currentTarget.dataset.name;
-
-        showModal({
-          title: 'Mark Schedule as Completed',
-          body: `<p>Are you sure you want to mark the schedule for <strong>${escapeHtml(name)}</strong> as <strong>Completed</strong>?</p>`,
-          confirmText: 'Mark Completed',
-          cancelText: 'Cancel',
-          onConfirm: async () => {
-            try {
-              await Bookings.update(id, { status: 'Completed' });
-              try {
-                await ActivityLog.write({
-                  bookingId: id,
-                  action: 'STATUS_CHANGED',
-                  details: { customer: name, to: 'Completed' }
-                });
-              } catch (_) {}
-              showToast(`Schedule for "${name}" marked as Completed!`, 'success');
-            } catch (err) {
-              showToast('Failed to update status: ' + (err.message || ''), 'error');
-              throw err;
-            }
-          }
-        });
-      });
     }
 
     function renderStats() {

@@ -271,7 +271,7 @@ export const Bookings = {
     return q.onSnapshot(
       snap => callback(collData(snap)),
       err => {
-        if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
+        if (!firebase.auth().currentUser) return;
         console.error('Real-time my-schedule listener error:', err);
         if (errorCallback) errorCallback(err);
       }

@@ -182,9 +182,17 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
           </div>
 
           <div class="form-group">
-            <label class="form-label">Created By</label>
-            <input type="text" class="form-control form-control-readonly"
-              value="${escapeHtml(b?.bookedByName || appState.user.displayName)}" readonly>
+            ${role === 'office_staff' ? `
+              <label class="form-label required" for="bf-booked-by">Created By</label>
+              <input type="text" id="bf-booked-by" class="form-control"
+                placeholder="Staff name / initials (e.g. Maria)"
+                value="${escapeHtml(b ? (b.bookedByName || '') : '')}">
+              <div class="form-hint">Enter your name or initials taking this booking.</div>
+            ` : `
+              <label class="form-label">Created By</label>
+              <input type="text" class="form-control form-control-readonly"
+                value="${escapeHtml(b?.bookedByName || appState.user.displayName || 'Admin')}" readonly>
+            `}
           </div>
 
           ${isEdit ? `
@@ -313,6 +321,10 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     const details  = document.getElementById('bf-details').value.trim();
     const notes    = b?.notes || '';
     const salesId  = document.getElementById('bf-salesperson').value;
+    const isOfficeStaff = role === 'office_staff';
+    const bookedByName = isOfficeStaff
+      ? (document.getElementById('bf-booked-by')?.value.trim() || '')
+      : (b?.bookedByName || appState.user.displayName || 'Admin');
     const statusVal = isEdit ? document.getElementById('bf-status').value : 'Pending';
     const completion = isEdit ? document.getElementById('bf-completion')?.value.trim() || '' : '';
 
@@ -324,6 +336,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     if (!salesId) errors.push('Salesperson is required.');
     if (canEditAll && !dateVal) errors.push('Scheduled date is required.');
     if (canEditAll && !timeVal) errors.push('Scheduled time is required (e.g. 10:00, Any).');
+    if (isOfficeStaff && !bookedByName) errors.push('Created By (Staff Name) is required.');
     if (errors.length) {
       errEl.innerHTML = errors.map(e => `<div>• ${escapeHtml(e)}</div>`).join('');
       errEl.classList.remove('hidden');
@@ -390,6 +403,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
             scheduledPeriod:        periodVal,
             salespersonId:          salesId,
             salespersonName:        salesName,
+            bookedByName:           bookedByName || b?.bookedByName || appState.user.displayName,
           };
         }
 
@@ -429,14 +443,14 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
           salespersonId:          salesId,
           salespersonName:        salesName,
           notes,
-          bookedByName:           appState.user.displayName,
+          bookedByName:           bookedByName,
         });
 
         // Activity log
         await ActivityLog.write({
           bookingId: newBooking.id,
           action: 'BOOKING_CREATED',
-          details: { customer: name, serviceType: typeVal, salesperson: salesName }
+          details: { customer: name, serviceType: typeVal, salesperson: salesName, bookedBy: bookedByName }
         });
 
         // Notification to salesperson
