@@ -12,19 +12,28 @@ export async function renderDashboard(container, appState) {
   const uid  = appState.uid;
   const displayName = appState.user.displayName || 'User';
 
-  // Greeting based on current time
+  // Greeting and visual theme based on current time
   const currentHour = new Date().getHours();
   let greetingText = 'Welcome back';
   let greetingEmoji = '👋';
+  let heroThemeClass = 'dash-hero-sunset';
+
   if (currentHour >= 5 && currentHour < 12) {
     greetingText = 'Good morning';
     greetingEmoji = '☀️';
+    heroThemeClass = 'dash-hero-morning';
   } else if (currentHour >= 12 && currentHour < 17) {
     greetingText = 'Good afternoon';
     greetingEmoji = '🌤️';
+    heroThemeClass = 'dash-hero-sunset';
+  } else if (currentHour >= 17 && currentHour < 19) {
+    greetingText = 'Good evening';
+    greetingEmoji = '🌇';
+    heroThemeClass = 'dash-hero-sunset';
   } else {
     greetingText = 'Good evening';
     greetingEmoji = '🌙';
+    heroThemeClass = 'dash-hero-night';
   }
 
   // Role badge formatting
@@ -37,8 +46,9 @@ export async function renderDashboard(container, appState) {
   const roleBadgeText = roleDisplayMap[role] || 'User';
 
   container.innerHTML = `
-    <!-- Hero Welcome Banner with Quick Actions -->
-    <div class="dash-hero-banner">
+    <!-- Dynamic Hero Welcome Banner with Animated Gradients -->
+    <div class="dash-hero-banner ${heroThemeClass}">
+      <div class="dash-hero-orb"></div>
       <div class="dash-hero-left">
         <div class="dash-greeting">
           <span>${greetingText}, ${escapeHtml(displayName)}</span>
