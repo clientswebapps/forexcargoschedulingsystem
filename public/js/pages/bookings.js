@@ -32,7 +32,7 @@ export async function renderBookings(container, appState) {
     <!-- Filter Bar -->
     <div class="filter-bar">
       <div class="filter-row">
-        <div class="filter-group" style="flex:2;min-width:160px;">
+        <div class="filter-group flex-2">
           <div class="filter-label">Customer / Phone</div>
           <input type="text" id="f-search" class="filter-control" placeholder="Search name or number…">
         </div>

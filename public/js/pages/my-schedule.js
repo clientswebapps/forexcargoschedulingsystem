@@ -70,7 +70,7 @@ export async function renderMySchedule(container, appState) {
           </select>
         </div>
 
-        <div class="filter-group" style="flex:2;min-width:180px;">
+        <div class="filter-group flex-2">
           <div class="filter-label">Search (customer name or number)</div>
           <input type="text" id="ms-search" class="filter-control" placeholder="Search name or contact…">
         </div>

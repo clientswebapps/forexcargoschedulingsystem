@@ -16,7 +16,7 @@ export async function renderActivityLog(container, appState) {
 
     <div class="filter-bar">
       <div class="filter-row">
-        <div class="filter-group" style="flex:2;min-width:160px;">
+        <div class="filter-group flex-2">
           <div class="filter-label">Search (actor or action)</div>
           <input type="text" id="al-search" class="filter-control" placeholder="Search…">
         </div>

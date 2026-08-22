@@ -71,7 +71,7 @@ export async function renderStaffActivity(container, appState) {
     <div id="sa-view-stream" class="hidden">
       <div class="filter-bar">
         <div class="filter-row">
-          <div class="filter-group" style="flex:2;min-width:160px;">
+          <div class="filter-group flex-2">
             <div class="filter-label">Search Activity</div>
             <input type="text" id="sa-log-search" class="filter-control" placeholder="Search by staff, action, or details…">
           </div>
