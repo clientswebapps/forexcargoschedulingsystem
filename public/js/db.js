@@ -13,7 +13,7 @@ const auth = firebase.auth();
 
 /* ── Helpers ─────────────────────────────────────────────── */
 
-const serverTs = () => firebase.firestore.FieldValue.serverTimestamp();
+export const serverTs = () => firebase.firestore.FieldValue.serverTimestamp();
 const currentUid = () => auth.currentUser && auth.currentUser.uid;
 
 function docData(snap) {
