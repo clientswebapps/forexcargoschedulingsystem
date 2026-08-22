@@ -48,7 +48,8 @@ export async function renderDashboard(container, appState) {
   container.innerHTML = `
     <!-- Dynamic Hero Welcome Banner with Animated Gradients -->
     <div class="dash-hero-banner ${heroThemeClass}">
-      <div class="dash-hero-orb"></div>
+      <div class="dash-hero-orb dash-hero-orb-1"></div>
+      <div class="dash-hero-orb dash-hero-orb-2"></div>
       <div class="dash-hero-left">
         <div class="dash-greeting">
           <span>${greetingText}, ${escapeHtml(displayName)}</span>

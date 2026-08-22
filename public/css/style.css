@@ -483,44 +483,71 @@ ul { list-style: none; }
   gap: 20px;
   position: relative;
   overflow: hidden;
-  background-size: 260% 260%;
-  animation: heroGradientFlow 14s ease infinite alternate;
+  background-size: 300% 300%;
+  animation: heroGradientFlow 9s ease infinite alternate;
   transition: background 0.8s ease, box-shadow 0.8s ease;
 }
 
-/* 1. Morning Theme: Radiant Gradient Yellow / Sunrise Gold / Amber */
+/* 1. Morning Theme: Radiant Sunny Gold & Vibrant Sunrise Yellow */
 .dash-hero-banner.dash-hero-morning {
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 28%, #EA580C 65%, #B45309 100%);
-  box-shadow: 0 12px 32px -5px rgba(217, 119, 6, 0.42), 0 8px 12px -6px rgba(217, 119, 6, 0.25);
-  border: 1px solid rgba(254, 240, 138, 0.35);
+  background: linear-gradient(125deg, #F59E0B 0%, #FBBF24 22%, #FCD34D 45%, #EA580C 72%, #D97706 100%);
+  box-shadow: 0 14px 34px -5px rgba(217, 119, 6, 0.48), 0 8px 14px -6px rgba(245, 158, 11, 0.35);
+  border: 1px solid rgba(254, 240, 138, 0.45);
+}
+.dash-hero-banner.dash-hero-morning .dash-hero-orb-1 {
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.55) 0%, rgba(245, 158, 11, 0) 70%);
+}
+.dash-hero-banner.dash-hero-morning .dash-hero-orb-2 {
+  background: radial-gradient(circle, rgba(255, 237, 213, 0.45) 0%, rgba(234, 88, 12, 0) 70%);
 }
 
-/* 2. Sunset Theme: Rich Dark Sunset Orange / Fiery Dusk / Deep Crimson */
+/* 2. Sunset Theme: Blazing Vivid Dark Sunset Orange & Fiery Dusk Horizon */
 .dash-hero-banner.dash-hero-sunset {
-  background: linear-gradient(135deg, #9A3412 0%, #C2410C 30%, #EA580C 65%, #7C2D12 100%);
-  box-shadow: 0 12px 32px -5px rgba(194, 65, 12, 0.45), 0 8px 12px -6px rgba(154, 52, 18, 0.3);
-  border: 1px solid rgba(251, 146, 60, 0.35);
+  background: linear-gradient(125deg, #7C2D12 0%, #C2410C 20%, #FF5722 45%, #F97316 65%, #991B1B 85%, #581C87 100%);
+  box-shadow: 0 14px 34px -5px rgba(234, 88, 12, 0.55), 0 8px 14px -6px rgba(124, 45, 18, 0.4);
+  border: 1px solid rgba(255, 138, 101, 0.4);
+}
+.dash-hero-banner.dash-hero-sunset .dash-hero-orb-1 {
+  background: radial-gradient(circle, rgba(255, 171, 145, 0.6) 0%, rgba(255, 87, 34, 0) 70%);
+}
+.dash-hero-banner.dash-hero-sunset .dash-hero-orb-2 {
+  background: radial-gradient(circle, rgba(251, 146, 60, 0.5) 0%, rgba(153, 27, 27, 0) 70%);
 }
 
-/* 3. Night Theme: Very Dark Midnight Blue / Indigo Starlight / Deep Obsidian */
+/* 3. Night Theme: Very Dark Midnight Blue / Electric Indigo / Deep Celestial Obsidian */
 .dash-hero-banner.dash-hero-night {
-  background: linear-gradient(135deg, #030712 0%, #0A192F 30%, #0F172A 62%, #1E1B4B 100%);
-  box-shadow: 0 12px 32px -5px rgba(2, 6, 23, 0.7), 0 8px 12px -6px rgba(10, 25, 47, 0.45);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: linear-gradient(125deg, #020617 0%, #0B192C 22%, #1E3A8A 48%, #2563EB 70%, #1E1B4B 88%, #030712 100%);
+  box-shadow: 0 14px 34px -5px rgba(2, 6, 23, 0.75), 0 8px 14px -6px rgba(30, 58, 138, 0.5);
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+.dash-hero-banner.dash-hero-night .dash-hero-orb-1 {
+  background: radial-gradient(circle, rgba(96, 165, 250, 0.45) 0%, rgba(37, 99, 235, 0) 70%);
+}
+.dash-hero-banner.dash-hero-night .dash-hero-orb-2 {
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, rgba(30, 27, 75, 0) 70%);
 }
 
-/* Ambient Floating Light Orb */
+/* Ambient Floating Light Orbs (Fluid Mesh Motion) */
 .dash-hero-orb {
   position: absolute;
-  top: -45%;
-  right: -5%;
-  width: 380px;
-  height: 380px;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 70%);
-  animation: heroOrbFloat 8s ease-in-out infinite alternate;
   z-index: 1;
+  filter: blur(25px);
+}
+.dash-hero-orb-1 {
+  top: -40%;
+  right: -5%;
+  width: 420px;
+  height: 420px;
+  animation: heroOrbFloat1 7s ease-in-out infinite alternate;
+}
+.dash-hero-orb-2 {
+  bottom: -40%;
+  left: 15%;
+  width: 360px;
+  height: 360px;
+  animation: heroOrbFloat2 9s ease-in-out infinite alternate;
 }
 
 @keyframes heroGradientFlow {
@@ -535,18 +562,33 @@ ul { list-style: none; }
   }
 }
 
-@keyframes heroOrbFloat {
+@keyframes heroOrbFloat1 {
   0% {
     transform: translate(0, 0) scale(1);
-    opacity: 0.6;
+    opacity: 0.7;
   }
   50% {
-    transform: translate(-35px, 20px) scale(1.18);
+    transform: translate(-50px, 30px) scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(25px, -20px) scale(0.9);
+    opacity: 0.75;
+  }
+}
+
+@keyframes heroOrbFloat2 {
+  0% {
+    transform: translate(0, 0) scale(0.9);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translate(45px, -25px) scale(1.25);
     opacity: 0.95;
   }
   100% {
-    transform: translate(15px, -15px) scale(1.05);
-    opacity: 0.7;
+    transform: translate(-30px, 15px) scale(1);
+    opacity: 0.6;
   }
 }
 
