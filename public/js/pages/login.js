@@ -1,8 +1,8 @@
 /**
  * login.js — Login page
  */
-'use strict';
 import { showToast, escapeHtml } from '../utils.js';
+import { promptInstallApp, updateDownloadAppButtons } from '../pwa.js';
 
 export function renderLogin(container, initialError) {
   container.innerHTML = `
@@ -33,8 +33,18 @@ export function renderLogin(container, initialError) {
         </button>
       </form>
 
+      <div style="margin-top:14px;">
+        <button type="button" class="btn btn-secondary btn-sm download-app-btn" id="login-download-app-btn" style="display:inline-flex;align-items:center;gap:6px;width:100%;justify-content:center;font-weight:500;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download / Install App
+        </button>
+      </div>
+
       <div class="login-footer">Internal staff access only &mdash; Forex Cargo Bahrain</div>
     </div>`;
+
+  document.getElementById('login-download-app-btn')?.addEventListener('click', promptInstallApp);
+  updateDownloadAppButtons();
 
   const form      = document.getElementById('login-form');
   const emailEl   = document.getElementById('login-email');

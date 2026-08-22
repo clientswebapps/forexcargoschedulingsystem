@@ -43,6 +43,9 @@ const $notifBadge = document.getElementById('notif-badge');
 const $sidebar    = document.getElementById('sidebar');
 const $sidebarOverlay = document.getElementById('sidebar-overlay');
 
+// Initialize PWA Service Worker & Install Listeners immediately on page load
+initPWA();
+
 /* ── Auth State Observer ────────────────────────────────── */
 firebase.auth().onAuthStateChanged(async (authUser) => {
   if (!authUser) {
