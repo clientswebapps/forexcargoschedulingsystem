@@ -379,6 +379,12 @@ function setupSidebarToggle() {
     sidebarToggleBtn.addEventListener('click', toggleSidebar);
   }
 
+  const sidebarEdgeToggleBtn = document.getElementById('sidebar-edge-toggle-btn');
+  if (sidebarEdgeToggleBtn && !sidebarEdgeToggleBtn._bound) {
+    sidebarEdgeToggleBtn._bound = true;
+    sidebarEdgeToggleBtn.addEventListener('click', toggleSidebar);
+  }
+
   const topbarToggleBtn = document.getElementById('topbar-sidebar-toggle-btn');
   if (topbarToggleBtn && !topbarToggleBtn._bound) {
     topbarToggleBtn._bound = true;
