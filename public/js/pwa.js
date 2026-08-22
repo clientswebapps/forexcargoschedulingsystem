@@ -77,14 +77,75 @@ export function initPWA() {
     e.preventDefault();
     deferredPrompt = e;
     updateDownloadAppButtons();
+    showInstallBanner();
   });
 
   // 3. Track successful install
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
+    hideInstallBanner();
     showToast('Forex Cargo App installed successfully!', 'success');
     updateDownloadAppButtons();
   });
+}
+
+/** Show floating install banner when browser prompt is ready */
+export function showInstallBanner() {
+  if (isStandalone()) return;
+  if (sessionStorage.getItem('pwa_banner_dismissed')) return;
+  if (document.getElementById('pwa-install-banner')) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'pwa-install-banner';
+  banner.className = 'pwa-install-banner';
+  banner.innerHTML = `
+    <div class="pwa-banner-content">
+      <div class="pwa-banner-icon">
+        <img src="/images/icon-192.png" alt="Forex Cargo">
+      </div>
+      <div class="pwa-banner-text">
+        <div class="pwa-banner-title">Install Forex Cargo App</div>
+        <div class="pwa-banner-desc">1-tap home screen access & faster load</div>
+      </div>
+    </div>
+    <div class="pwa-banner-actions">
+      <button class="pwa-banner-install-btn" id="pwa-banner-install-btn">Install</button>
+      <button class="pwa-banner-close-btn" id="pwa-banner-close-btn" aria-label="Dismiss">✕</button>
+    </div>
+  `;
+
+  document.body.appendChild(banner);
+
+  banner.querySelector('#pwa-banner-install-btn')?.addEventListener('click', () => {
+    triggerDirectInstall();
+  });
+
+  banner.querySelector('#pwa-banner-close-btn')?.addEventListener('click', () => {
+    banner.remove();
+    sessionStorage.setItem('pwa_banner_dismissed', '1');
+  });
+}
+
+export function hideInstallBanner() {
+  const banner = document.getElementById('pwa-install-banner');
+  if (banner) banner.remove();
+}
+
+/** Direct trigger for browser install prompt */
+async function triggerDirectInstall() {
+  if (deferredPrompt) {
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        hideInstallBanner();
+      }
+      deferredPrompt = null;
+      updateDownloadAppButtons();
+    } catch (err) {
+      console.warn('[PWA] prompt error:', err);
+    }
+  }
 }
 
 /** Gentle update notification toast */
@@ -142,13 +203,7 @@ export async function promptInstallApp() {
 
   // Case A: Browser supports native deferred prompt (Chrome, Edge, Android)
   if (deferredPrompt) {
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      showToast('Installing Forex Cargo App…', 'info');
-    }
-    deferredPrompt = null;
-    updateDownloadAppButtons();
+    triggerDirectInstall();
     return;
   }
 
@@ -197,7 +252,7 @@ export async function promptInstallApp() {
           <div style="text-align:left;background:var(--light-gray);border-radius:var(--radius-md);padding:14px 16px;font-size:0.85rem;line-height:1.6;">
             <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
               <span style="font-weight:700;background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0;">1</span>
-              <span>Tap the <strong>Menu (⋮)</strong> button at the top-right of your browser.</span>
+              <span>Tap the <strong>Menu (⋮)</strong> button at the top-right of Chrome/browser.</span>
             </div>
             <div style="display:flex;align-items:center;gap:8px;">
               <span style="font-weight:700;background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0;">2</span>
