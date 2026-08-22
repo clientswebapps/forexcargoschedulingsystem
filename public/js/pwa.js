@@ -201,7 +201,10 @@ export async function promptInstallApp() {
     return;
   }
 
-  // Case A: Browser supports native deferred prompt (Chrome, Edge, Android)
+  // Clear dismissed state so banner and prompt are active
+  sessionStorage.removeItem('pwa_banner_dismissed');
+
+  // Case A: Browser has active native deferred prompt (Chrome, Edge, Android)
   if (deferredPrompt) {
     triggerDirectInstall();
     return;
