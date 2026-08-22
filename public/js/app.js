@@ -116,6 +116,7 @@ function showApp() {
   updateUserInfo();
   setupTopbar();
   setupMobileNav();
+  setupSidebarToggle();
   refreshNotifBadge();
   initPresence(state.uid);
   updateDownloadAppButtons();
@@ -253,7 +254,7 @@ function buildNav() {
     if (item.divider) return `<li style="height:1px;background:var(--sidebar-border);margin:6px 0;"></li>`;
     return `
       <li>
-        <button class="nav-item" data-route="${item.route}" onclick="window._navigate('${item.route}')">
+        <button class="nav-item" data-route="${item.route}" title="${escapeHtml(item.label)}" onclick="window._navigate('${item.route}')">
           <span class="nav-icon">${item.icon}</span>
           <span>${escapeHtml(item.label)}</span>
         </button>
@@ -264,23 +265,23 @@ function buildNav() {
   const footer = document.getElementById('sidebar-footer');
   if (footer) {
     footer.innerHTML = `
-      <button class="nav-item download-app-btn" id="download-app-nav-btn" style="color:#64B5F6;margin-bottom:2px;font-weight:500;">
+      <button class="nav-item download-app-btn" id="download-app-nav-btn" title="Download / Install App" style="color:#64B5F6;margin-bottom:2px;font-weight:500;">
         <span class="nav-icon">${icons.download}</span>
         <span>Download App</span>
       </button>
-      <button class="nav-item" id="change-name-nav-btn" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
+      <button class="nav-item" id="change-name-nav-btn" title="Change Name" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
         <span class="nav-icon">${icons.user}</span>
         <span>Change Name</span>
       </button>
-      <button class="nav-item" id="change-email-nav-btn" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
+      <button class="nav-item" id="change-email-nav-btn" title="Change Email" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
         <span class="nav-icon">${icons.mail}</span>
         <span>Change Email</span>
       </button>
-      <button class="nav-item" id="change-pwd-nav-btn" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
+      <button class="nav-item" id="change-pwd-nav-btn" title="Change Password" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
         <span class="nav-icon">${icons.key}</span>
         <span>Change Password</span>
       </button>
-      <button class="nav-item" id="logout-nav-btn" style="color:rgba(255,255,255,0.6)">
+      <button class="nav-item" id="logout-nav-btn" title="Sign Out" style="color:rgba(255,255,255,0.6)">
         <span class="nav-icon">${icons.logout}</span>
         <span>Sign Out</span>
       </button>`;
@@ -363,6 +364,31 @@ function setupMobileNav() {
       if ($sidebarOverlay) $sidebarOverlay.style.display = 'none';
     }
   });
+}
+
+/* ── Collapsible Mini-Sidebar Toggle ────────────────────── */
+function setupSidebarToggle() {
+  const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+  if (isCollapsed) {
+    $appShell.classList.add('sidebar-collapsed');
+  }
+
+  const toggleSidebar = () => {
+    const collapsed = $appShell.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('sidebar_collapsed', collapsed ? 'true' : 'false');
+  };
+
+  const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+  if (sidebarToggleBtn && !sidebarToggleBtn._bound) {
+    sidebarToggleBtn._bound = true;
+    sidebarToggleBtn.addEventListener('click', toggleSidebar);
+  }
+
+  const topbarToggleBtn = document.getElementById('topbar-sidebar-toggle-btn');
+  if (topbarToggleBtn && !topbarToggleBtn._bound) {
+    topbarToggleBtn._bound = true;
+    topbarToggleBtn.addEventListener('click', toggleSidebar);
+  }
 }
 
 /* ── Notification badge ─────────────────────────────────── */
