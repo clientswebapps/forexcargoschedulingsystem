@@ -258,7 +258,10 @@ function formatAction(action) {
 }
 
 function formatDetails(details) {
-  return Object.entries(details)
+  if (!details || typeof details !== 'object') return '—';
+  const entries = Object.entries(details);
+  if (entries.length === 0) return '—';
+  return entries
     .map(([k, v]) => `<span style="font-weight:500">${escapeHtml(k)}:</span> ${escapeHtml(String(v))}`)
     .join(' &nbsp;·&nbsp; ');
 }

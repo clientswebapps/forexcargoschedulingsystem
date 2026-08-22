@@ -279,15 +279,16 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
 
   // ── Save ──────────────────────────────────────────
   document.getElementById('save-btn').addEventListener('click', async () => {
+    const canEditAll = !isSales || !isEdit || isSalesCreator;
     const errEl    = document.getElementById('form-err');
     const name     = document.getElementById('bf-name').value.trim();
     const phone    = document.getElementById('bf-phone').value.trim();
     const address  = document.getElementById('bf-address').value.trim();
     const custId   = document.getElementById('bf-customer-id').value;
-    const typeVal  = !isSales || !isEdit ? document.getElementById('bf-type').value : b.serviceType;
-    const dateVal  = !isSales || !isEdit ? document.getElementById('bf-date').value : null;
-    const timeVal  = !isSales || !isEdit ? document.getElementById('bf-time').value.trim() : '';
-    const periodVal = !isSales || !isEdit ? document.getElementById('bf-period').value : 'Anytime';
+    const typeVal  = canEditAll ? document.getElementById('bf-type')?.value : (b?.serviceType || '');
+    const dateVal  = canEditAll ? document.getElementById('bf-date')?.value : null;
+    const timeVal  = canEditAll ? (document.getElementById('bf-time')?.value.trim() || '') : (b?.scheduledTime || '');
+    const periodVal = canEditAll ? document.getElementById('bf-period')?.value : (b?.scheduledPeriod || 'AM');
     const details  = document.getElementById('bf-details').value.trim();
     const notes    = b?.notes || '';
     const salesId  = document.getElementById('bf-salesperson').value;
@@ -300,8 +301,8 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     if (!phone)   errors.push('Contact number is required.');
     if (!typeVal) errors.push('Service type is required.');
     if (!salesId) errors.push('Salesperson is required.');
-    if (!isEdit && !dateVal) errors.push('Scheduled date is required.');
-    if (!isEdit && !timeVal) errors.push('Scheduled time is required (e.g. 10:00, Any).');
+    if (canEditAll && !dateVal) errors.push('Scheduled date is required.');
+    if (canEditAll && !timeVal) errors.push('Scheduled time is required (e.g. 10:00, Any).');
     if (errors.length) {
       errEl.innerHTML = errors.map(e => `<div>• ${escapeHtml(e)}</div>`).join('');
       errEl.classList.remove('hidden');
@@ -316,7 +317,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     try {
       // Find or create customer if not linked
       let finalCustomerId = custId;
-      if ((!isSales || !isEdit || isSalesCreator) && !finalCustomerId && phone) {
+      if (canEditAll && !finalCustomerId && phone) {
         const existingCusts = await Customers.searchByPhone(phone);
         if (existingCusts.length > 0) {
           const cleanSearch = phone.replace(/\D/g, '');
@@ -342,7 +343,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
         salesName = salesEl.options[salesEl.selectedIndex]?.text || '';
       }
 
-      const scheduledDate = isEdit && isSales ? b.scheduledDate : inputToTimestamp(dateVal);
+      const scheduledDate = (isEdit && !canEditAll) ? b.scheduledDate : inputToTimestamp(dateVal);
 
       if (isEdit) {
         const prevSalesId = b.salespersonId;

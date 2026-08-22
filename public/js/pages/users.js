@@ -122,6 +122,10 @@ export async function renderUsers(container, appState) {
   };
 
   window._toggleUser = (uid, currentlyActive) => {
+    if (uid === appState.uid && currentlyActive) {
+      showToast('You cannot deactivate your own account.', 'error');
+      return;
+    }
     const action = currentlyActive ? 'deactivate' : 'activate';
     const user = allUsers.find(u => u.id === uid);
     showModal({
@@ -147,6 +151,7 @@ export async function renderUsers(container, appState) {
 
   async function showUserForm(user) {
     const isEdit = !!user;
+    const isSelf = user?.id === appState.uid;
     const isCurrentSuper = appState.user.role === 'super_admin';
     showModal({
       title: isEdit ? 'Edit User' : 'Add New User',
@@ -173,19 +178,20 @@ export async function renderUsers(container, appState) {
         </div>`}
         <div class="form-group">
           <label class="form-label required" for="uf-role">Role</label>
-          <select id="uf-role" class="form-control">
+          <select id="uf-role" class="form-control" ${isSelf ? 'disabled' : ''}>
             ${isCurrentSuper ? `<option value="super_admin" ${user?.role==='super_admin'?'selected':''}>Super Admin (Hidden)</option>` : ''}
             <option value="admin"        ${user?.role==='admin'?'selected':''}>Admin</option>
             <option value="office_staff" ${user?.role==='office_staff'?'selected':''}>Office Staff</option>
             <option value="salesperson"  ${user?.role==='salesperson'?'selected':''}>Salesperson</option>
           </select>
+          ${isSelf ? '<div class="form-hint">You cannot change your own role.</div>' : ''}
         </div>
         <div id="uf-err" class="form-error hidden"></div>`,
       confirmText: isEdit ? 'Save Changes' : 'Create User',
       cancelText: 'Cancel',
       onConfirm: async () => {
         const name     = document.getElementById('uf-name').value.trim();
-        const roleVal  = document.getElementById('uf-role').value;
+        const roleVal  = isSelf ? user.role : document.getElementById('uf-role').value;
         const errEl    = document.getElementById('uf-err');
 
         if (!name) { errEl.textContent = 'Display name is required.'; errEl.classList.remove('hidden'); throw new Error('validation'); }
