@@ -76,13 +76,6 @@ export async function renderBookings(container, appState) {
             <option>Pending</option><option>Completed</option><option>Cancelled</option>
           </select>
         </div>
-        <div class="filter-group">
-          <div class="filter-label">Service Type</div>
-          <select id="f-type" class="filter-control">
-            <option value="">All</option>
-            <option>Pickup</option><option>Delivery</option><option>Custom</option>
-          </select>
-        </div>
 
         <div class="filter-group">
           <div class="filter-label">Created By</div>
@@ -147,7 +140,6 @@ export async function renderBookings(container, appState) {
     }
 
     const fStatus   = document.getElementById('f-status')?.value;
-    const fType     = document.getElementById('f-type')?.value;
     const fPeriod   = document.getElementById('f-period')?.value;
     const fSales    = document.getElementById('f-salesperson')?.value;
     const fBookedBy = document.getElementById('f-booked-by')?.value;
@@ -161,7 +153,6 @@ export async function renderBookings(container, appState) {
       unsubscribe = Bookings.onAllSnapshot(
         {
           status:          fStatus   || undefined,
-          serviceType:     fType     || undefined,
           salespersonId:   fSales    || undefined,
           bookedById:      fBookedBy || undefined,
           dateFrom:        dateFrom  || undefined,
@@ -324,7 +315,7 @@ export async function renderBookings(container, appState) {
   };
 
   // Event bindings
-  const filterIds = ['f-status','f-type','f-salesperson','f-booked-by','f-date-from','f-date-to','f-period'];
+  const filterIds = ['f-status','f-salesperson','f-booked-by','f-date-from','f-date-to','f-period'];
   filterIds.forEach(id => document.getElementById(id)?.addEventListener('change', load));
   
   let prevHasSearch = false;
@@ -358,7 +349,6 @@ export async function renderBookings(container, appState) {
     document.getElementById('f-custom-from-group').style.display = 'none';
     document.getElementById('f-custom-to-group').style.display = 'none';
     document.getElementById('f-status').value = '';
-    document.getElementById('f-type').value = '';
     document.getElementById('f-period').value = '';
     document.getElementById('f-salesperson').value = '';
     document.getElementById('f-booked-by').value = '';
@@ -389,13 +379,11 @@ export async function renderBookings(container, appState) {
     const customTo = document.getElementById('f-date-to')?.value || '';
     const { dateFrom, dateTo } = getDateRange(rangeType, customFrom, customTo);
     const fSt    = document.getElementById('f-status').value;
-    const fTy    = document.getElementById('f-type').value;
     const fPd    = document.getElementById('f-period').value;
     if (fSales) params.set('salespersonId', fSales);
     if (dateFrom) params.set('dateFrom', dateFrom);
     if (dateTo)   params.set('dateTo', dateTo);
     if (fSt)    params.set('status', fSt);
-    if (fTy)    params.set('serviceType', fTy);
     if (fPd)    params.set('scheduledPeriod', fPd);
     if (rangeType) params.set('rangeType', rangeType);
 
