@@ -61,26 +61,6 @@ export async function renderDashboard(container, appState) {
           <span id="dash-live-clock">Loading time…</span>
         </div>
       </div>
-      <div class="dash-quick-actions">
-        <button class="btn-dash-action btn-dash-action-primary" id="dash-btn-new-schedule">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          New Schedule
-        </button>
-        ${role !== 'salesperson' ? `
-        <button class="btn-dash-action" id="dash-btn-new-customer">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-          Add Customer
-        </button>` : ''}
-        ${role !== 'salesperson' ? `
-        <button class="btn-dash-action" id="dash-btn-print-today">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Print Today's Run
-        </button>` : ''}
-        <button class="btn-dash-action" id="dash-btn-view-schedules">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          ${role === 'salesperson' ? 'My Schedule' : 'All Schedules'}
-        </button>
-      </div>
     </div>
 
     <!-- Spotlight: Next Up Schedule -->
@@ -146,135 +126,9 @@ export async function renderDashboard(container, appState) {
   updateLiveClock();
   clockTimer = setInterval(updateLiveClock, 1000);
 
-  // Quick Action Button Handlers
-  document.getElementById('dash-btn-new-schedule')?.addEventListener('click', () => {
-    openScheduleModal(appState, null, () => {});
-  });
-
-  document.getElementById('dash-btn-new-customer')?.addEventListener('click', () => {
-    openQuickCustomerModal();
-  });
-
   const todayObj = new Date();
   const padNum = n => String(n).padStart(2, '0');
   const todayDateStr = `${todayObj.getFullYear()}-${padNum(todayObj.getMonth() + 1)}-${padNum(todayObj.getDate())}`;
-
-  document.getElementById('dash-btn-print-today')?.addEventListener('click', async () => {
-    let salespersons = [];
-    if (role !== 'salesperson') {
-      try {
-        salespersons = await Users.getActiveSalespersons();
-      } catch (_) {}
-    }
-
-    showModal({
-      title: "Print Today's Run",
-      body: `
-        <div class="form-group">
-          <label class="form-label required" for="pf-period">Run Time Period</label>
-          <select id="pf-period" class="form-control">
-            <option value="">All Day (Full Today's Schedule)</option>
-            <option value="AM">AM Run Only</option>
-            <option value="PM">PM Run Only</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label required" for="pf-salesperson">Salesperson</label>
-          ${role === 'salesperson' ? `
-            <input type="text" class="form-control form-control-readonly" value="${escapeHtml(displayName)}" readonly>
-            <input type="hidden" id="pf-salesperson" value="${uid}" data-name="${escapeHtml(displayName)}">
-          ` : `
-            <select id="pf-salesperson" class="form-control">
-              <option value="" data-name="">All Salespersons (Full Team Run)</option>
-              ${salespersons.map(s => `<option value="${s.id}" data-name="${escapeHtml(s.displayName)}">${escapeHtml(s.displayName)}</option>`).join('')}
-            </select>
-          `}
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="pf-status">Status Filter</label>
-          <select id="pf-status" class="form-control">
-            <option value="">All Statuses (Pending & Completed)</option>
-            <option value="Pending" selected>Pending Only (Recommended for Run Sheet)</option>
-            <option value="Completed">Completed Only</option>
-          </select>
-        </div>`,
-      confirmText: 'Generate Print Sheet',
-      cancelText: 'Cancel',
-      onConfirm: () => {
-        const periodVal = document.getElementById('pf-period')?.value || '';
-        let salesId = '';
-        let salesName = '';
-        if (role === 'salesperson') {
-          salesId = uid;
-          salesName = displayName;
-        } else {
-          const salesSelect = document.getElementById('pf-salesperson');
-          salesId = salesSelect?.value || '';
-          salesName = salesSelect?.options[salesSelect.selectedIndex]?.dataset.name || '';
-        }
-        const statusVal = document.getElementById('pf-status')?.value || '';
-
-        const params = new URLSearchParams();
-        params.set('rangeType', 'today');
-        params.set('dateFrom', todayDateStr);
-        params.set('dateTo', todayDateStr);
-        if (periodVal) params.set('scheduledPeriod', periodVal);
-        if (salesId) {
-          params.set('salespersonId', salesId);
-          params.set('salespersonName', salesName);
-        }
-        if (statusVal) params.set('status', statusVal);
-
-        window._navigate && window._navigate(`/print?${params.toString()}`);
-      }
-    });
-  });
-
-  document.getElementById('dash-btn-view-schedules')?.addEventListener('click', () => {
-    window._navigate && window._navigate(role === 'salesperson' ? '/my-schedule' : '/schedules');
-  });
-
-  function openQuickCustomerModal() {
-    showModal({
-      title: 'Add New Customer',
-      body: `
-        <div class="form-group">
-          <label class="form-label required" for="dash-cf-name">Customer Name</label>
-          <input type="text" id="dash-cf-name" class="form-control" placeholder="Full name">
-        </div>
-        <div class="form-group">
-          <label class="form-label required" for="dash-cf-phone">Contact Number</label>
-          <input type="tel" id="dash-cf-phone" class="form-control" placeholder="+973 XXXX XXXX">
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="dash-cf-address">Address</label>
-          <textarea id="dash-cf-address" class="form-control" rows="2" placeholder="Street, Area, City"></textarea>
-        </div>
-        <div id="dash-cf-err" class="form-error hidden"></div>`,
-      confirmText: 'Add Customer',
-      onConfirm: async () => {
-        const name    = document.getElementById('dash-cf-name').value.trim();
-        const phone   = document.getElementById('dash-cf-phone').value.trim();
-        const address = document.getElementById('dash-cf-address').value.trim();
-        const errEl   = document.getElementById('dash-cf-err');
-
-        if (!name || !phone) {
-          errEl.textContent = 'Name and contact number are required.';
-          errEl.classList.remove('hidden');
-          throw new Error('validation');
-        }
-
-        const newCust = await Customers.create({ name, contactNumber: phone, address });
-        try {
-          await ActivityLog.write({
-            action: 'CUSTOMER_CREATED',
-            details: { customerId: newCust.id, customerName: name, phone }
-          });
-        } catch (_) {}
-        showToast(`Customer "${name}" added successfully.`, 'success');
-      }
-    });
-  }
 
   try {
     let allToday = [];
