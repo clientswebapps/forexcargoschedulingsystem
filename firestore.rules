@@ -24,8 +24,12 @@ service cloud.firestore {
       return userDoc().isActive == true;
     }
 
+    function isSuperAdmin() {
+      return isSignedIn() && isActive() && role() == 'super_admin';
+    }
+
     function isAdmin() {
-      return isSignedIn() && isActive() && role() == 'admin';
+      return isSignedIn() && isActive() && (role() == 'admin' || role() == 'super_admin');
     }
 
     function isSalesperson() {
@@ -33,20 +37,24 @@ service cloud.firestore {
     }
 
     function isAdminOrOffice() {
-      return isSignedIn() && isActive() && (role() == 'admin' || role() == 'office_staff');
+      return isSignedIn() && isActive() && (role() == 'admin' || role() == 'super_admin' || role() == 'office_staff');
     }
 
     // ── USERS collection ────────────────────────────────────
-    // - Admin: full read/write on all users
+    // - Super Admin: full unrestricted access to all user docs
+    // - Admin: manage non-super-admin users; cannot create or promote to super_admin
     // - Any authenticated active user: read their own doc
-    // - Setup: a user can create their own doc (for initial setup via REST API)
     // - No user can delete user docs
     match /users/{userId} {
       allow read: if isSignedIn() && (uid() == userId || isAdminOrOffice());
-      allow create: if isSignedIn() && (uid() == userId || isAdmin());
+      allow create: if isSignedIn() && (
+        (uid() == userId && request.resource.data.role != 'super_admin')
+        || (isAdmin() && (request.resource.data.role != 'super_admin' || isSuperAdmin()))
+      );
       allow update: if isSignedIn() && (
         (uid() == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isActive']))
-        || isAdmin()
+        || (isAdmin() && resource.data.role != 'super_admin' && request.resource.data.role != 'super_admin')
+        || isSuperAdmin()
       );
       allow delete: if false;
     }

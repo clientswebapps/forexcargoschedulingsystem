@@ -252,6 +252,7 @@ export function serviceBadge(type) {
 
 export function roleBadge(role) {
   const map = {
+    'super_admin':  '<span class="badge" style="background:#4A148C;color:#fff;">Super Admin</span>',
     'admin':        '<span class="badge badge-navy">Admin</span>',
     'office_staff': '<span class="badge badge-info">Office Staff</span>',
     'salesperson':  '<span class="badge badge-gray">Salesperson</span>',
@@ -260,7 +261,7 @@ export function roleBadge(role) {
 }
 
 export function roleLabel(role) {
-  const map = { admin: 'Admin', office_staff: 'Office Staff', salesperson: 'Salesperson' };
+  const map = { super_admin: 'Super Admin', admin: 'Admin', office_staff: 'Office Staff', salesperson: 'Salesperson' };
   return map[role] || role;
 }
 
@@ -320,6 +321,82 @@ export function emptyStateHTML(title, subtitle = '', icon = '') {
     </div>`;
 }
 
+/**
+ * Export a list of schedules/bookings to a CSV file and trigger download
+ */
+export function exportBookingsToCSV(bookings, filenamePrefix = 'forex_cargo_schedules') {
+  if (!bookings || !bookings.length) {
+    showToast('No schedules to export.', 'warning');
+    return;
+  }
+
+  const headers = [
+    'Schedule ID',
+    'Date',
+    'Time',
+    'Period',
+    'Customer Name',
+    'Contact Number',
+    'Address',
+    'Service Type',
+    'Service Details',
+    'Salesperson',
+    'Created By',
+    'Status',
+    'Notes / Preferences',
+    'Completion Notes',
+    'Created At',
+    'Last Updated At'
+  ];
+
+  const escapeCSV = (val) => {
+    if (val == null) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  const rows = bookings.map(b => {
+    return [
+      escapeCSV(b.id || ''),
+      escapeCSV(formatDate(b.scheduledDate)),
+      escapeCSV(b.scheduledTime || ''),
+      escapeCSV(b.scheduledPeriod || 'Anytime'),
+      escapeCSV(b.snapshot_name || ''),
+      escapeCSV(b.snapshot_contactNumber || ''),
+      escapeCSV(b.snapshot_address || ''),
+      escapeCSV(b.serviceType || ''),
+      escapeCSV(b.serviceDetails || ''),
+      escapeCSV(b.salespersonName || ''),
+      escapeCSV(b.bookedByName || ''),
+      escapeCSV(b.status || 'Pending'),
+      escapeCSV(b.notes || ''),
+      escapeCSV(b.completionNotes || ''),
+      escapeCSV(formatDateTime(b.createdAt)),
+      escapeCSV(formatDateTime(b.updatedAt))
+    ].join(',');
+  });
+
+  const csvContent = '\uFEFF' + [headers.map(h => `"${h}"`).join(','), ...rows].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const filename = `${filenamePrefix}_${dateStamp}.csv`;
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showToast(`Exported ${bookings.length} schedule(s) to ${filename}`, 'success');
+}
+
 /** Build SVG icon string (inline, stroke-based) */
 export const icons = {
   dashboard: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
@@ -332,11 +409,15 @@ export const icons = {
   history: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>`,
   logout: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
   print: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`,
+  download: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
   plus: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
   edit: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
   trash: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`,
   eye: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
   search: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
   check: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-  x: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  key: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-1.5 1.5L12 11l4 4 1.5-1.5M16 16l2 2m-1.5 1.5L21 22"/><circle cx="7.5" cy="16.5" r="4.5"/></svg>`,
+  mail: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
+  user: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  x: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
 };

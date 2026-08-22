@@ -3,7 +3,7 @@
  */
 'use strict';
 import { Bookings, Users, ActivityLog } from '../db.js';
-import { formatDateTime, formatDate, formatBookingDateTime, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange, showToast } from '../utils.js';
+import { formatDateTime, formatDate, formatBookingDateTime, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange, showToast, exportBookingsToCSV } from '../utils.js';
 import { openScheduleModal } from './booking-form.js';
 
 export async function renderBookings(container, appState) {
@@ -14,6 +14,10 @@ export async function renderBookings(container, appState) {
         <div class="page-subtitle">All schedule records</div>
       </div>
       <div class="page-actions">
+        <button class="btn btn-secondary" id="export-csv-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
         <button class="btn btn-secondary" id="print-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Print
@@ -107,7 +111,8 @@ export async function renderBookings(container, appState) {
     salespeople.forEach(u => sEl.add(new Option(u.displayName, u.id)));
 
     const bEl = document.getElementById('f-booked-by');
-    allStaff.filter(u => u.role !== 'salesperson').forEach(u => bEl.add(new Option(u.displayName, u.id)));
+    const isSuper = appState.user.role === 'super_admin';
+    allStaff.filter(u => u.role !== 'salesperson' && (u.role !== 'super_admin' || isSuper)).forEach(u => bEl.add(new Option(u.displayName, u.id)));
     // Also add salespersons as they can create schedules
     salespeople.forEach(u => bEl.add(new Option(u.displayName + ' (Sales)', u.id)));
   } catch(_) {}
@@ -321,6 +326,11 @@ export async function renderBookings(container, appState) {
   window._openEditSchedule = (id) => {
     openScheduleModal(appState, id);
   };
+
+  // Export to CSV
+  document.getElementById('export-csv-btn')?.addEventListener('click', () => {
+    exportBookingsToCSV(filtered.length ? filtered : allBookings, 'forex_cargo_schedules');
+  });
 
   document.getElementById('print-btn')?.addEventListener('click', () => {
     // Pass current filter state to print page

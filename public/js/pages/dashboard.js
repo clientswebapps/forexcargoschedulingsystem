@@ -272,11 +272,11 @@ export async function renderDashboard(container, appState) {
             }
           });
           if (type === 'daily') {
-            chartEl.innerHTML = generateBarChartSVG(dailyData, dailyLabels);
+            chartEl.innerHTML = generateLineChartSVG(dailyData, dailyLabels);
           } else if (type === 'weekly') {
-            chartEl.innerHTML = generateBarChartSVG(weeklyData, weeklyLabels);
+            chartEl.innerHTML = generateLineChartSVG(weeklyData, weeklyLabels);
           } else {
-            chartEl.innerHTML = generateBarChartSVG(monthlyData, monthlyLabels);
+            chartEl.innerHTML = generateLineChartSVG(monthlyData, monthlyLabels);
           }
         }
 
@@ -308,29 +308,82 @@ export async function renderDashboard(container, appState) {
   };
 }
 
-function generateBarChartSVG(data, labels) {
+function generateLineChartSVG(data, labels) {
   const width = 500;
   const height = 180;
-  const maxVal = Math.max(...data, 4);
-  const barWidth = data.length > 7 ? 20 : 32;
-  const chartHeight = height - 40;
-  const totalBarArea = width - 80;
-  const step = data.length > 1 ? totalBarArea / (data.length - 1) : totalBarArea;
+  const padLeft = 28;
+  const padRight = 20;
+  const padTop = 22;
+  const padBottom = 30;
 
-  const bars = data.map((val, i) => {
-    const barHeight = (val / maxVal) * chartHeight;
-    const x = data.length > 1 ? (i * step + 40 - barWidth / 2) : (width / 2 - barWidth / 2);
-    const y = chartHeight - barHeight + 15;
+  const chartWidth = width - padLeft - padRight;
+  const chartHeight = height - padTop - padBottom;
+  const chartBottom = padTop + chartHeight;
+
+  const rawMax = Math.max(...data, 0);
+  let maxVal = Math.max(rawMax, 4);
+  if (maxVal % 2 !== 0) maxVal += 1;
+  const midVal = Math.round(maxVal / 2);
+
+  const n = data.length;
+  const points = data.map((val, i) => {
+    const x = n > 1 ? padLeft + i * (chartWidth / (n - 1)) : width / 2;
+    const y = chartBottom - (val / maxVal) * chartHeight;
+    return { x, y, val, label: labels[i] };
+  });
+
+  // Smooth Catmull-Rom to Cubic Bézier spline with baseline clamping
+  let lineD = '';
+  if (points.length === 1) {
+    lineD = `M ${points[0].x - 20} ${points[0].y} L ${points[0].x + 20} ${points[0].y}`;
+  } else {
+    lineD = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i === 0 ? 0 : i - 1];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2] || p2;
+
+      // If both points are 0, flat straight line along baseline
+      if (p1.val === 0 && p2.val === 0) {
+        lineD += ` L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+        continue;
+      }
+
+      let cp1x = p1.x + (p2.x - p0.x) / 6;
+      let cp1y = p1.y + (p2.y - p0.y) / 6;
+
+      let cp2x = p2.x - (p3.x - p1.x) / 6;
+      let cp2y = p2.y - (p3.y - p1.y) / 6;
+
+      // Clamp control points within bounds to prevent dipping below baseline
+      cp1y = Math.min(chartBottom, Math.max(padTop, cp1y));
+      cp2y = Math.min(chartBottom, Math.max(padTop, cp2y));
+
+      lineD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+  }
+
+  // Area fill below line
+  const areaD = points.length > 1
+    ? `${lineD} L ${points[points.length - 1].x.toFixed(1)} ${chartBottom} L ${points[0].x.toFixed(1)} ${chartBottom} Z`
+    : '';
+
+  const pointsSVG = points.map((p) => {
     return `
-      <g class="bar-group">
-        <!-- Bar background for hover zone -->
-        <rect x="${x}" y="15" width="${barWidth}" height="${chartHeight}" fill="transparent" />
-        <!-- Actual colored bar -->
-        <rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="4" fill="url(#barGradient)" style="transition: all 0.3s ease;">
-          <title>${val} schedule(s)</title>
-        </rect>
-        <text x="${x + barWidth/2}" y="${y - 6}" text-anchor="middle" font-size="0.75rem" font-weight="600" fill="var(--navy)">${val}</text>
-        <text x="${x + barWidth/2}" y="${height - 8}" text-anchor="middle" font-size="0.62rem" font-weight="500" fill="var(--text-secondary)">${labels[i]}</text>
+      <g class="chart-point-group" style="cursor:pointer;">
+        <!-- Vertical guide line on hover -->
+        <line class="chart-hover-line" x1="${p.x.toFixed(1)}" y1="${padTop}" x2="${p.x.toFixed(1)}" y2="${chartBottom}" stroke="rgba(25,118,210,0.18)" stroke-width="1" stroke-dasharray="2,2" />
+        <!-- Value text above dot (smaller, tiny) -->
+        <text class="point-val" x="${p.x.toFixed(1)}" y="${(p.y - 6).toFixed(1)}" text-anchor="middle" font-size="0.58rem" font-weight="600" fill="${p.val > 0 ? 'var(--navy)' : 'var(--text-hint)'}">${p.val}</text>
+        <!-- Outer glowing dot (smaller, tiny) -->
+        <circle class="point-circle" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.75" fill="#0D47A1" stroke="#FFFFFF" stroke-width="1.5" />
+        <!-- Hover target -->
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="16" fill="transparent">
+          <title>${escapeHtml(p.label)}: ${p.val} schedule(s)</title>
+        </circle>
+        <!-- X-axis date label (smaller, tiny) -->
+        <text x="${p.x.toFixed(1)}" y="${(height - 8).toFixed(1)}" text-anchor="middle" font-size="0.58rem" font-weight="500" fill="var(--text-secondary)">${escapeHtml(p.label)}</text>
       </g>
     `;
   }).join('');
@@ -338,15 +391,37 @@ function generateBarChartSVG(data, labels) {
   return `
     <svg width="100%" height="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" style="overflow:visible;">
       <defs>
-        <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="lineAreaGradient" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1976D2" stop-opacity="0.18" />
+          <stop offset="100%" stop-color="#1976D2" stop-opacity="0.0" />
+        </linearGradient>
+        <linearGradient id="lineStrokeGradient" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0%" stop-color="#42A5F5" />
           <stop offset="100%" stop-color="#0D47A1" />
         </linearGradient>
+        <filter id="lineShadow" x="-10%" y="-10%" width="120%" height="130%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#0D47A1" flood-opacity="0.15" />
+        </filter>
       </defs>
-      <line x1="20" y1="${chartHeight + 15}" x2="${width - 20}" y2="${chartHeight + 15}" stroke="var(--border-gray)" stroke-width="1.5" />
-      <line x1="20" y1="${chartHeight/2 + 15}" x2="${width - 20}" y2="${chartHeight/2 + 15}" stroke="var(--border-gray)" stroke-dasharray="3,3" />
-      <line x1="20" y1="15" x2="${width - 20}" y2="15" stroke="var(--border-gray)" stroke-dasharray="3,3" />
-      ${bars}
+
+      <!-- Horizontal Grid Lines & Y-Labels (smaller, tiny) -->
+      <line x1="${padLeft}" y1="${padTop}" x2="${width - padRight}" y2="${padTop}" stroke="var(--border-gray)" stroke-width="1" stroke-dasharray="3,3" />
+      <text x="${padLeft - 5}" y="${padTop + 3.5}" text-anchor="end" font-size="0.55rem" font-weight="500" fill="var(--text-hint)">${maxVal}</text>
+
+      <line x1="${padLeft}" y1="${padTop + chartHeight / 2}" x2="${width - padRight}" y2="${padTop + chartHeight / 2}" stroke="var(--border-gray)" stroke-width="1" stroke-dasharray="3,3" />
+      <text x="${padLeft - 5}" y="${padTop + chartHeight / 2 + 3.5}" text-anchor="end" font-size="0.55rem" font-weight="500" fill="var(--text-hint)">${midVal}</text>
+
+      <line x1="${padLeft}" y1="${chartBottom}" x2="${width - padRight}" y2="${chartBottom}" stroke="var(--border-gray)" stroke-width="1" />
+      <text x="${padLeft - 5}" y="${chartBottom + 3}" text-anchor="end" font-size="0.55rem" font-weight="500" fill="var(--text-hint)">0</text>
+
+      <!-- Gradient Area Fill -->
+      ${areaD ? `<path d="${areaD}" fill="url(#lineAreaGradient)" />` : ''}
+
+      <!-- Line Stroke with Shadow (thinner: 1.8px) -->
+      <path d="${lineD}" fill="none" stroke="url(#lineStrokeGradient)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" filter="url(#lineShadow)" />
+
+      <!-- Data Points & Labels -->
+      ${pointsSVG}
     </svg>
   `;
 }

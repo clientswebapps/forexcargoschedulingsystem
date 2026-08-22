@@ -57,7 +57,7 @@ export const Users = {
   async getActiveStaff() {
     const snap = await db.collection('users').get();
     return collData(snap)
-      .filter(u => u.isActive !== false)
+      .filter(u => u.isActive !== false && u.role !== 'super_admin')
       .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
   },
 
@@ -79,8 +79,15 @@ export const Users = {
     await db.collection('users').doc(uid).update(updates);
   },
 
-  onSnapshot(callback) {
-    return db.collection('users').orderBy('displayName').onSnapshot(snap => callback(collData(snap)));
+  onSnapshot(callback, errorCallback) {
+    return db.collection('users').orderBy('displayName').onSnapshot(
+      snap => callback(collData(snap)),
+      err => {
+        if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
+        console.error('Users onSnapshot error:', err);
+        if (errorCallback) errorCallback(err);
+      }
+    );
   },
 };
 
@@ -158,8 +165,15 @@ export const Customers = {
     await db.collection('customers').doc(id).update(updates);
   },
 
-  onSnapshot(callback) {
-    return db.collection('customers').orderBy('name').onSnapshot(snap => callback(collData(snap)));
+  onSnapshot(callback, errorCallback) {
+    return db.collection('customers').orderBy('name').onSnapshot(
+      snap => callback(collData(snap)),
+      err => {
+        if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
+        console.error('Customers onSnapshot error:', err);
+        if (errorCallback) errorCallback(err);
+      }
+    );
   },
 };
 
@@ -217,6 +231,7 @@ export const Bookings = {
     return q.onSnapshot(
       snap => callback(collData(snap)),
       err => {
+        if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
         console.error('Real-time schedules listener error:', err);
         if (errorCallback) errorCallback(err);
       }
@@ -252,6 +267,7 @@ export const Bookings = {
     return q.onSnapshot(
       snap => callback(collData(snap)),
       err => {
+        if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
         console.error('Real-time my-schedule listener error:', err);
         if (errorCallback) errorCallback(err);
       }
@@ -320,6 +336,7 @@ export const Bookings = {
     return db.collection('bookings').doc(id).onSnapshot(
       snap => callback(docData(snap)),
       err => {
+        if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
         console.error('Booking onSnapshot error:', err);
         if (errorCallback) errorCallback(err);
       }
@@ -375,12 +392,19 @@ export const Notifications = {
     await db.collection('notifications').add(doc);
   },
 
-  onSnapshot(uid, callback) {
+  onSnapshot(uid, callback, errorCallback) {
     return db.collection('notifications')
       .where('recipientId', '==', uid)
       .orderBy('createdAt', 'desc')
       .limit(50)
-      .onSnapshot(snap => callback(collData(snap)));
+      .onSnapshot(
+        snap => callback(collData(snap)),
+        err => {
+          if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
+          console.error('Notifications onSnapshot error:', err);
+          if (errorCallback) errorCallback(err);
+        }
+      );
   },
 };
 

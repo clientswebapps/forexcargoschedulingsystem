@@ -4,7 +4,7 @@
  */
 'use strict';
 import { Bookings, ActivityLog } from '../db.js';
-import { formatDateTime, formatDate, formatBookingDateTime, statusBadge, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange, showToast } from '../utils.js';
+import { formatDateTime, formatDate, formatBookingDateTime, statusBadge, serviceBadge, loadingHTML, errorHTML, escapeHtml, debounce, getDateRange, showToast, exportBookingsToCSV } from '../utils.js';
 import { openScheduleModal } from './booking-form.js';
 
 export async function renderMySchedule(container, appState) {
@@ -17,6 +17,10 @@ export async function renderMySchedule(container, appState) {
         <div class="page-subtitle">Your assigned schedules</div>
       </div>
       <div class="page-actions">
+        <button class="btn btn-secondary" id="my-export-csv-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>
         <button class="btn btn-secondary" id="my-print-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Print My Schedule
@@ -229,6 +233,12 @@ export async function renderMySchedule(container, appState) {
   // Create Schedule opens modal
   document.getElementById('my-new-schedule-btn')?.addEventListener('click', () => {
     openScheduleModal(appState, null);
+  });
+
+  // Export My Schedule to CSV
+  document.getElementById('my-export-csv-btn')?.addEventListener('click', () => {
+    const sName = (appState.user.displayName || 'salesperson').replace(/\s+/g, '_').toLowerCase();
+    exportBookingsToCSV(allBookings, `forex_schedule_${sName}`);
   });
 
   document.getElementById('my-print-btn')?.addEventListener('click', () => {

@@ -128,9 +128,13 @@ ul { list-style: none; }
 .loading-screen.fade-out { opacity: 0; pointer-events: none; }
 .loading-content { text-align: center; color: var(--text-white); }
 .loading-logo {
-  width: 64px; height: 64px;
+  width: 76px; height: 76px;
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 10px;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 24px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.28);
 }
 .loading-spinner {
   width: 36px; height: 36px;
@@ -176,9 +180,13 @@ ul { list-style: none; }
 }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-icon {
-  width: 36px; height: 36px;
+  width: 38px; height: 38px;
+  background: #FFFFFF;
+  border-radius: var(--radius);
+  padding: 4px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 .brand-name {
   font-size: 0.9rem; font-weight: 600; color: var(--text-white);
@@ -190,6 +198,12 @@ ul { list-style: none; }
   display: flex; align-items: center; gap: 10px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--sidebar-border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+.sidebar-user:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 .user-avatar {
   width: 36px; height: 36px;
@@ -904,10 +918,28 @@ tbody td {
   .page-actions .btn { flex: 1; justify-content: center; }
 }
 
-/* ── SVG Chart Hover Styles ──────────────────────────────── */
-.bar-group rect {
-  transition: filter 0.25s ease;
+/* ── SVG Line Chart Hover & Animation Styles ──────────────── */
+.chart-point-group {
+  transition: all 0.2s ease;
 }
-.bar-group:hover rect {
-  filter: brightness(1.18);
+.chart-point-group .chart-hover-line {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.chart-point-group:hover .chart-hover-line {
+  opacity: 1;
+}
+.chart-point-group .point-circle {
+  transition: r 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.2s ease;
+}
+.chart-point-group:hover .point-circle {
+  r: 4.2;
+  fill: #1976D2;
+}
+.chart-point-group .point-val {
+  transition: font-size 0.2s ease, font-weight 0.2s ease, fill 0.2s ease;
+}
+.chart-point-group:hover .point-val {
+  font-weight: 700;
+  fill: #0D47A1;
 }

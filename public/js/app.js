@@ -16,7 +16,7 @@ import { renderNotifications } from './pages/notifications.js';
 import { renderActivityLog }   from './pages/activity-log.js';
 import { renderPrint }         from './pages/print.js';
 import { Users, Notifications } from './db.js';
-import { showToast, initials, roleLabel, icons, escapeHtml } from './utils.js';
+import { showToast, showModal, closeModal, initials, roleLabel, icons, escapeHtml } from './utils.js';
 
 /* ── App State ──────────────────────────────────────────── */
 const state = {
@@ -77,6 +77,22 @@ firebase.auth().onAuthStateChanged(async (authUser) => {
 
 /* ── Screen switching ───────────────────────────────────── */
 function showLoginScreen(message) {
+  if (state.cleanup && typeof state.cleanup === 'function') {
+    try { state.cleanup(); } catch(_) {}
+    state.cleanup = null;
+  }
+  if (notifBadgeUnsub) {
+    try { notifBadgeUnsub(); } catch(_) {}
+    notifBadgeUnsub = null;
+  }
+  if (hashChangeHandler) {
+    window.removeEventListener('hashchange', hashChangeHandler);
+    hashChangeHandler = null;
+  }
+  state.uid  = null;
+  state.user = null;
+  state.authUser = null;
+
   $loading.classList.add('fade-out');
   setTimeout(() => $loading.classList.add('hidden'), 400);
   $appShell.classList.add('hidden');
@@ -145,7 +161,7 @@ function handleRoute(hash) {
       return;
     }
   }
-  if (base === '/users' && role !== 'admin') {
+  if (base === '/users' && role !== 'admin' && role !== 'super_admin') {
     navigate('/');
     return;
   }
@@ -223,14 +239,29 @@ function buildNav() {
       </li>`;
   }).join('');
 
-  // Logout at bottom
+  // Change Name, Change Email, Change Password, and Logout at bottom
   const footer = document.getElementById('sidebar-footer');
   if (footer) {
     footer.innerHTML = `
+      <button class="nav-item" id="change-name-nav-btn" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
+        <span class="nav-icon">${icons.user}</span>
+        <span>Change Name</span>
+      </button>
+      <button class="nav-item" id="change-email-nav-btn" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
+        <span class="nav-icon">${icons.mail}</span>
+        <span>Change Email</span>
+      </button>
+      <button class="nav-item" id="change-pwd-nav-btn" style="color:rgba(255,255,255,0.75);margin-bottom:2px;">
+        <span class="nav-icon">${icons.key}</span>
+        <span>Change Password</span>
+      </button>
       <button class="nav-item" id="logout-nav-btn" style="color:rgba(255,255,255,0.6)">
         <span class="nav-icon">${icons.logout}</span>
         <span>Sign Out</span>
       </button>`;
+    footer.querySelector('#change-name-nav-btn').addEventListener('click', showChangeNameModal);
+    footer.querySelector('#change-email-nav-btn').addEventListener('click', showChangeEmailModal);
+    footer.querySelector('#change-pwd-nav-btn').addEventListener('click', showChangePasswordModal);
     footer.querySelector('#logout-nav-btn').addEventListener('click', signOut);
   }
 }
@@ -254,7 +285,7 @@ function getNavItems(role) {
     { route: '/activity-log',  label: 'Activity Log', icon: icons.history   },
   ];
 
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'super_admin') {
     items.splice(3, 0, { route: '/users', label: 'Users', icon: icons.users });
   }
 
@@ -266,6 +297,13 @@ function updateUserInfo() {
   if ($userAvatar) $userAvatar.textContent = initials(state.user.displayName);
   if ($userName)   $userName.textContent   = state.user.displayName || state.authUser.email;
   if ($userRole)   $userRole.textContent   = roleLabel(state.user.role);
+
+  const userCard = document.querySelector('.sidebar-user');
+  if (userCard && !userCard._bound) {
+    userCard._bound = true;
+    userCard.setAttribute('title', 'Click to edit your display name');
+    userCard.addEventListener('click', showChangeNameModal);
+  }
 }
 
 /* ── Topbar setup ───────────────────────────────────────── */
@@ -343,4 +381,224 @@ async function signOut() {
   } catch (err) {
     showToast('Failed to sign out.', 'error');
   }
+}
+
+/* ── Change Password Modal ──────────────────────────────── */
+function showChangePasswordModal() {
+  showModal({
+    title: 'Change Password',
+    body: `
+      <div class="form-group">
+        <label class="form-label required" for="cp-current">Current Password</label>
+        <input type="password" id="cp-current" class="form-control" placeholder="Enter current password" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="cp-new">New Password</label>
+        <input type="password" id="cp-new" class="form-control" placeholder="Minimum 8 characters" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="cp-confirm">Confirm New Password</label>
+        <input type="password" id="cp-confirm" class="form-control" placeholder="Re-enter new password" autocomplete="new-password">
+      </div>
+      <div id="cp-err" class="form-error hidden"></div>`,
+    confirmText: 'Update Password',
+    cancelText: 'Cancel',
+    onConfirm: async () => {
+      const currentPass = document.getElementById('cp-current').value;
+      const newPass     = document.getElementById('cp-new').value;
+      const confirmPass = document.getElementById('cp-confirm').value;
+      const errEl       = document.getElementById('cp-err');
+
+      if (!currentPass) {
+        errEl.textContent = 'Current password is required.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+      if (!newPass) {
+        errEl.textContent = 'New password is required.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+      if (newPass.length < 8) {
+        errEl.textContent = 'New password must be at least 8 characters long.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+      if (newPass !== confirmPass) {
+        errEl.textContent = 'New passwords do not match.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+      if (currentPass === newPass) {
+        errEl.textContent = 'New password must be different from current password.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+
+      errEl.classList.add('hidden');
+
+      const user = firebase.auth().currentUser;
+      if (!user || !user.email) {
+        errEl.textContent = 'You must be signed in to change your password.';
+        errEl.classList.remove('hidden');
+        throw new Error('not_authenticated');
+      }
+
+      try {
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPass);
+        await user.reauthenticateWithCredential(credential);
+        await user.updatePassword(newPass);
+        showToast('Password updated successfully.', 'success');
+      } catch (err) {
+        console.error('Password change error:', err);
+        const msgs = {
+          'auth/wrong-password': 'The current password you entered is incorrect.',
+          'auth/invalid-credential': 'The current password you entered is incorrect.',
+          'auth/weak-password': 'The new password is too weak. Please use a stronger password.',
+          'auth/too-many-requests': 'Too many unsuccessful attempts. Please try again later.',
+          'auth/requires-recent-login': 'Please sign out and sign in again before changing your password.',
+        };
+        errEl.textContent = msgs[err.code] || err.message || 'Failed to change password.';
+        errEl.classList.remove('hidden');
+        throw err;
+      }
+    }
+  });
+}
+
+/* ── Change Email Modal ─────────────────────────────────── */
+function showChangeEmailModal() {
+  showModal({
+    title: 'Change Email Address',
+    body: `
+      <div class="form-group">
+        <label class="form-label" for="ce-current-email">Current Email</label>
+        <input type="email" id="ce-current-email" class="form-control form-control-readonly" value="${escapeHtml(state.user?.email || '')}" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="ce-new-email">New Email Address</label>
+        <input type="email" id="ce-new-email" class="form-control" placeholder="new-email@forexcargo.bh" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="ce-password">Current Password (to confirm)</label>
+        <input type="password" id="ce-password" class="form-control" placeholder="Enter current password" autocomplete="current-password">
+      </div>
+      <div class="text-xs text-secondary mt-1" style="line-height:1.4">
+        Firebase will send a verification link to your new email address to confirm the change.
+      </div>
+      <div id="ce-err" class="form-error hidden mt-2"></div>`,
+    confirmText: 'Send Verification Email',
+    cancelText: 'Cancel',
+    onConfirm: async () => {
+      const newEmail    = (document.getElementById('ce-new-email').value || '').trim();
+      const currentPass = document.getElementById('ce-password').value;
+      const errEl       = document.getElementById('ce-err');
+
+      if (!newEmail) {
+        errEl.textContent = 'New email address is required.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+        errEl.textContent = 'Please enter a valid email address.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+      if (newEmail.toLowerCase() === (state.user?.email || '').toLowerCase()) {
+        errEl.textContent = 'New email must be different from current email.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+      if (!currentPass) {
+        errEl.textContent = 'Current password is required to change email.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+
+      errEl.classList.add('hidden');
+
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        errEl.textContent = 'You must be signed in.';
+        errEl.classList.remove('hidden');
+        throw new Error('not_authenticated');
+      }
+
+      try {
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPass);
+        await user.reauthenticateWithCredential(credential);
+
+        if (typeof user.verifyBeforeUpdateEmail === 'function') {
+          await user.verifyBeforeUpdateEmail(newEmail);
+          showToast(`Verification email sent to ${newEmail}! Click the link in your inbox to confirm.`, 'info');
+        } else {
+          await user.updateEmail(newEmail);
+          await Users.update(user.uid, { email: newEmail });
+          state.user.email = newEmail;
+          updateUserInfo();
+          showToast('Email address updated successfully.', 'success');
+        }
+      } catch (err) {
+        console.error('Email change error:', err);
+        const msgs = {
+          'auth/wrong-password': 'The password you entered is incorrect.',
+          'auth/invalid-credential': 'The password you entered is incorrect.',
+          'auth/email-already-in-use': 'This email address is already in use by another account.',
+          'auth/invalid-email': 'The email address format is invalid.',
+          'auth/requires-recent-login': 'Please sign out and sign back in before changing your email.',
+          'auth/operation-not-allowed': 'Email verification is required by Firebase security settings. Please check your inbox.',
+        };
+        errEl.textContent = msgs[err.code] || err.message || 'Failed to update email.';
+        errEl.classList.remove('hidden');
+        throw err;
+      }
+    }
+  });
+}
+
+/* ── Change Display Name Modal ──────────────────────────── */
+function showChangeNameModal() {
+  showModal({
+    title: 'Change Display Name',
+    body: `
+      <div class="form-group">
+        <label class="form-label required" for="cn-name">Display Name</label>
+        <input type="text" id="cn-name" class="form-control" value="${escapeHtml(state.user?.displayName || '')}" placeholder="Full Name" autocomplete="name">
+      </div>
+      <div id="cn-err" class="form-error hidden"></div>`,
+    confirmText: 'Save Name',
+    cancelText: 'Cancel',
+    onConfirm: async () => {
+      const newName = (document.getElementById('cn-name').value || '').trim();
+      const errEl   = document.getElementById('cn-err');
+
+      if (!newName) {
+        errEl.textContent = 'Display name cannot be empty.';
+        errEl.classList.remove('hidden');
+        throw new Error('validation');
+      }
+
+      errEl.classList.add('hidden');
+
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        errEl.textContent = 'You must be signed in.';
+        errEl.classList.remove('hidden');
+        throw new Error('not_authenticated');
+      }
+
+      try {
+        await user.updateProfile({ displayName: newName });
+        await Users.update(user.uid, { displayName: newName });
+        state.user.displayName = newName;
+        updateUserInfo();
+        showToast('Display name updated successfully.', 'success');
+      } catch (err) {
+        console.error('Name change error:', err);
+        errEl.textContent = err.message || 'Failed to update name.';
+        errEl.classList.remove('hidden');
+        throw err;
+      }
+    }
+  });
 }

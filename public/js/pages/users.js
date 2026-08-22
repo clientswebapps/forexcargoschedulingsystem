@@ -44,7 +44,9 @@ export async function renderUsers(container, appState) {
     }
     try {
       unsubscribe = Users.onSnapshot((list) => {
-        allUsers = list;
+        const isSuper = appState.user.role === 'super_admin';
+        // Hide super_admin accounts from other users
+        allUsers = isSuper ? list : list.filter(u => u.role !== 'super_admin');
         applySearch();
       });
     } catch (err) {
@@ -139,6 +141,7 @@ export async function renderUsers(container, appState) {
 
   async function showUserForm(user) {
     const isEdit = !!user;
+    const isCurrentSuper = appState.user.role === 'super_admin';
     showModal({
       title: isEdit ? 'Edit User' : 'Add New User',
       wide: true,
@@ -165,6 +168,7 @@ export async function renderUsers(container, appState) {
         <div class="form-group">
           <label class="form-label required" for="uf-role">Role</label>
           <select id="uf-role" class="form-control">
+            ${isCurrentSuper ? `<option value="super_admin" ${user?.role==='super_admin'?'selected':''}>Super Admin (Hidden)</option>` : ''}
             <option value="admin"        ${user?.role==='admin'?'selected':''}>Admin</option>
             <option value="office_staff" ${user?.role==='office_staff'?'selected':''}>Office Staff</option>
             <option value="salesperson"  ${user?.role==='salesperson'?'selected':''}>Salesperson</option>
@@ -212,6 +216,11 @@ export async function renderUsers(container, appState) {
 }
 
 function avatarColor(role) {
-  const map = { admin: 'rgba(13,71,161,0.15)', office_staff: 'rgba(25,118,210,0.12)', salesperson: '#EEEEEE' };
+  const map = {
+    super_admin:  'rgba(74,20,140,0.15)',
+    admin:        'rgba(13,71,161,0.15)',
+    office_staff: 'rgba(25,118,210,0.12)',
+    salesperson:  '#EEEEEE'
+  };
   return map[role] || '#EEEEEE';
 }
