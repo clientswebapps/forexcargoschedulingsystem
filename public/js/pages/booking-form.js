@@ -117,16 +117,9 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
         <!-- Service Details -->
         <div style="border:1px solid var(--divider);border-radius:var(--radius-md);padding:16px;">
           <div style="font-weight:600;font-size:0.85rem;color:var(--navy);margin-bottom:12px;">Service Details</div>
+          
+          <!-- First: Date and Time -->
           <div class="form-row">
-            <div class="form-group">
-              <label class="form-label required" for="bf-type">Service Type</label>
-              <select id="bf-type" class="form-control" ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
-                <option value="">Select type…</option>
-                <option ${b?.serviceType==='Pickup'?'selected':''}>Pickup</option>
-                <option ${b?.serviceType==='Delivery'?'selected':''}>Delivery</option>
-                <option ${b?.serviceType==='Custom'?'selected':''}>Custom</option>
-              </select>
-            </div>
             <div class="form-group" style="flex: 1;">
               <label class="form-label required" for="bf-date">Scheduled Date</label>
               <input type="date" id="bf-date" class="form-control"
@@ -147,7 +140,20 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
               </div>
             </div>
           </div>
-          <div class="form-group" style="margin-bottom:0">
+
+          <!-- Below: Service Type -->
+          <div class="form-group" style="margin-bottom:${b?.serviceType ? '12px' : '0'};">
+            <label class="form-label required" for="bf-type">Service Type</label>
+            <select id="bf-type" class="form-control" ${isSales && isEdit && !isSalesCreator ? 'disabled' : ''}>
+              <option value="">Select type…</option>
+              <option ${b?.serviceType==='Pickup'?'selected':''}>Pickup</option>
+              <option ${b?.serviceType==='Delivery'?'selected':''}>Delivery</option>
+              <option ${b?.serviceType==='Custom'?'selected':''}>Custom</option>
+            </select>
+          </div>
+
+          <!-- Service Details / Description (Hidden until Service Type is selected) -->
+          <div id="bf-details-group" class="form-group ${b?.serviceType ? '' : 'hidden'}" style="margin-bottom:0">
             <label class="form-label" for="bf-details">Service Details / Description</label>
             <textarea id="bf-details" class="form-control" rows="2"
               placeholder="Describe the service requirements…"
@@ -274,6 +280,21 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     // Close dropdown when clicking outside within the modal
     modalBody.addEventListener('click', e => {
       if (!e.target.closest('.autocomplete-wrapper')) dropdown.classList.add('hidden');
+    });
+  }
+
+  // ── Toggle Service Details Visibility on Type Change ──
+  const typeSelectEl = document.getElementById('bf-type');
+  const detailsGroupEl = document.getElementById('bf-details-group');
+  if (typeSelectEl && detailsGroupEl) {
+    typeSelectEl.addEventListener('change', () => {
+      if (typeSelectEl.value) {
+        detailsGroupEl.classList.remove('hidden');
+        typeSelectEl.parentElement.style.marginBottom = '12px';
+      } else {
+        detailsGroupEl.classList.add('hidden');
+        typeSelectEl.parentElement.style.marginBottom = '0';
+      }
     });
   }
 
