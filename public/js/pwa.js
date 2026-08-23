@@ -128,9 +128,14 @@ function showUpdateToast() {
     <button class="toast-close" aria-label="Dismiss">✕</button>
   `;
 
+  const remove = () => {
+    toast.classList.remove('toast-visible');
+    setTimeout(() => toast.remove(), 350);
+  };
+
   toast.addEventListener('click', (e) => {
     if (e.target.classList.contains('toast-close')) {
-      toast.remove();
+      remove();
       return;
     }
     if (updateRegistration && updateRegistration.waiting) {
@@ -141,6 +146,8 @@ function showUpdateToast() {
   });
 
   container.appendChild(toast);
+  const t = setTimeout(remove, 3000);
+  toast.querySelector('.toast-close').addEventListener('click', () => clearTimeout(t));
 }
 
 /** Update the visibility and state of Download App buttons */

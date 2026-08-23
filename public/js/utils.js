@@ -185,7 +185,7 @@ export function getDateRange(rangeType, customFrom = '', customTo = '') {
 
 /* ── Toasts ──────────────────────────────────────────────── */
 
-export function showToast(message, type = 'info', duration = 3800) {
+export function showToast(message, type = 'info', duration = 3000) {
   const container = document.getElementById('toast-container');
   if (!container) return;
   const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
