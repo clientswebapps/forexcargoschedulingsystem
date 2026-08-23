@@ -108,14 +108,34 @@ export async function renderCustomers(container, appState) {
       </div>`;
   }
 
-  // Search
+  // Search with space-tolerant and digit-normalized phone matching
   const searchFn = debounce(q => {
     if (!q) { renderTable(allCustomers); return; }
-    const ql = q.toLowerCase();
-    renderTable(allCustomers.filter(c =>
-      (c.name || '').toLowerCase().includes(ql) ||
-      (c.contactNumber || '').includes(q)
-    ));
+    const rawQ = q.trim().toLowerCase();
+    const cleanQ = rawQ.replace(/[\s\-\+\(\)]/g, '');
+    const cleanDigitsOnly = rawQ.replace(/\D/g, '');
+    let searchLocal = cleanDigitsOnly;
+    if (cleanDigitsOnly.startsWith('973') && cleanDigitsOnly.length > 3) {
+      searchLocal = cleanDigitsOnly.substring(3);
+    }
+
+    renderTable(allCustomers.filter(c => {
+      const name = (c.name || '').toLowerCase();
+      const phone = (c.contactNumber || '').toLowerCase();
+      const cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
+      const custDigits = phone.replace(/\D/g, '');
+      let custLocal = custDigits;
+      if (custDigits.startsWith('973') && custDigits.length > 3) {
+        custLocal = custDigits.substring(3);
+      }
+      const address = (c.address || '').toLowerCase();
+
+      return name.includes(rawQ) ||
+             phone.includes(rawQ) ||
+             (cleanQ && cleanPhone.includes(cleanQ)) ||
+             (searchLocal && custLocal && (custLocal.includes(searchLocal) || searchLocal.includes(custLocal))) ||
+             address.includes(rawQ);
+    }));
   }, 250);
   document.getElementById('customer-search')?.addEventListener('input', e => searchFn(e.target.value.trim()));
 
