@@ -826,15 +826,28 @@ ul { list-style: none; }
     font-size: 0.78rem;
   }
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 10px;
     margin-bottom: 16px;
   }
   .stat-card {
-    padding: 14px 16px;
+    padding: 12px 14px;
+    gap: 10px;
+  }
+  .stat-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .stat-icon svg {
+    width: 18px;
+    height: 18px;
   }
   .stat-value {
-    font-size: 1.5rem;
+    font-size: 1.35rem;
+  }
+  .stat-label {
+    font-size: 0.72rem;
+    line-height: 1.2;
   }
   #dash-chart-card .card-header {
     flex-direction: column;
@@ -1618,7 +1631,35 @@ tbody td {
 }
 
 @media (max-width: 480px) {
-  .stats-grid { grid-template-columns: 1fr; }
+  .stats-grid { 
+    grid-template-columns: repeat(2, 1fr); 
+    gap: 8px;
+  }
+  .stat-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .stat-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .stat-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+  .stat-value {
+    font-size: 1.25rem;
+  }
+  .stat-label {
+    font-size: 0.68rem;
+    line-height: 1.15;
+  }
+  .dash-progress-wrap {
+    margin-top: 5px;
+  }
+  .dash-progress-label {
+    font-size: 0.65rem;
+  }
   .login-card { padding: 28px 20px; }
   .page-header { flex-direction: column; align-items: flex-start; }
   .page-actions { width: 100%; }
