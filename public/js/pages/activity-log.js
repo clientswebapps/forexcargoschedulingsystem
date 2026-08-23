@@ -49,10 +49,12 @@ export async function renderActivityLog(container, appState) {
       <div id="al-content">${loadingHTML()}</div>
     </div>`;
 
+  const isSuper = appState.user.role === 'super_admin';
+  let hiddenUids = new Set();
   let allLogs = [];
   let unsubscribe = null;
 
-  function load() {
+  async function load() {
     if (unsubscribe) {
       unsubscribe();
       unsubscribe = null;
@@ -62,9 +64,33 @@ export async function renderActivityLog(container, appState) {
     if (tableEl && !allLogs.length) {
       tableEl.innerHTML = loadingHTML();
     }
+
+    if (!isSuper && hiddenUids.size === 0) {
+      try {
+        const users = await Users.getAll();
+        users.forEach(u => {
+          if (u.role === 'super_admin' || u.isInvisible) {
+            hiddenUids.add(u.id);
+          }
+        });
+      } catch(_) {}
+    }
+
     try {
       unsubscribe = ActivityLog.onSnapshot({ bookingId: bookingId || undefined }, (list) => {
-        allLogs = list;
+        if (isSuper) {
+          allLogs = list;
+        } else {
+          allLogs = list.filter(log => {
+            // Hide if actor is super admin or invisible account
+            if (log.actorRole === 'super_admin' || log.isInvisible === true) return false;
+            if (log.actorId && hiddenUids.has(log.actorId)) return false;
+            // Hide if action details reference super admin or invisible account
+            if (log.details?.role === 'super_admin' || log.details?.isInvisible === true) return false;
+            if (log.details?.targetUserId && hiddenUids.has(log.details.targetUserId)) return false;
+            return true;
+          });
+        }
         applyFilter();
       });
     } catch (err) {

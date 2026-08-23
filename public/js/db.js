@@ -449,13 +449,16 @@ export const ActivityLog = {
 
   async write({ bookingId, action, details = {} }) {
     const user = auth.currentUser;
+    const appUser = window._appState?.user;
     const doc = {
-      bookingId:  bookingId || null,
-      actorId:    user ? user.uid : null,
-      actorName:  user ? (user.displayName || user.email) : 'System',
+      bookingId:   bookingId || null,
+      actorId:     user ? user.uid : null,
+      actorName:   user ? (user.displayName || user.email) : 'System',
+      actorRole:   appUser?.role || null,
+      isInvisible: !!appUser?.isInvisible,
       action,
       details,
-      timestamp:  serverTs(),
+      timestamp:   serverTs(),
     };
     await db.collection('activityLog').add(doc);
   },

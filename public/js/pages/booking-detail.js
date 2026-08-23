@@ -37,7 +37,16 @@ export async function renderBookingDetail(container, appState, bookingId) {
   try {
     if (role !== 'salesperson') {
       try {
-        logs = await ActivityLog.getForBooking(bookingId);
+        const rawLogs = await ActivityLog.getForBooking(bookingId);
+        if (role === 'super_admin') {
+          logs = rawLogs;
+        } else {
+          logs = rawLogs.filter(log => {
+            if (log.actorRole === 'super_admin' || log.isInvisible) return false;
+            if (log.details?.role === 'super_admin' || log.details?.isInvisible) return false;
+            return true;
+          });
+        }
       } catch (logErr) {
         console.warn('Could not load activity log:', logErr);
       }

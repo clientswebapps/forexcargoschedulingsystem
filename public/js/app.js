@@ -112,6 +112,7 @@ function showApp() {
   $loginScreen.classList.add('hidden');
   $appShell.classList.remove('hidden');
 
+  window._appState = state;
   buildNav();
   updateUserInfo();
   setupTopbar();
