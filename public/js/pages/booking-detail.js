@@ -2,7 +2,7 @@
  * booking-detail.js — Schedule Detail view (read-only with quick actions)
  */
 'use strict';
-import { Bookings, ActivityLog } from '../db.js';
+import { Bookings, ActivityLog, Users } from '../db.js';
 import { formatDateTime, formatBookingDateTime, statusBadge, serviceBadge, timeAgo, loadingHTML, errorHTML, escapeHtml, showToast } from '../utils.js';
 import { openScheduleModal } from './booking-form.js';
 
@@ -41,9 +41,19 @@ export async function renderBookingDetail(container, appState, bookingId) {
         if (role === 'super_admin') {
           logs = rawLogs;
         } else {
+          let hiddenUids = new Set();
+          try {
+            const allUsers = await Users.getAll();
+            allUsers.forEach(u => {
+              if (u.role === 'super_admin' || u.isInvisible) hiddenUids.add(u.id);
+            });
+          } catch (_) {}
+
           logs = rawLogs.filter(log => {
             if (log.actorRole === 'super_admin' || log.isInvisible) return false;
+            if (log.actorId && hiddenUids.has(log.actorId)) return false;
             if (log.details?.role === 'super_admin' || log.details?.isInvisible) return false;
+            if (log.details?.targetUserId && hiddenUids.has(log.details.targetUserId)) return false;
             return true;
           });
         }
