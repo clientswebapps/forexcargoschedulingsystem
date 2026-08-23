@@ -9,6 +9,7 @@ import { openScheduleModal } from './booking-form.js';
 export async function renderBookings(container, appState) {
   const role = appState.user.role;
   const isSales = role === 'salesperson';
+  const canDelete = role === 'admin' || role === 'super_admin';
 
   container.innerHTML = `
     <div class="page-header">
@@ -245,7 +246,7 @@ export async function renderBookings(container, appState) {
                 <td style="text-align:right" onclick="event.stopPropagation()">
                   <div class="row-actions-stacked">
                     <button class="btn btn-secondary btn-sm" onclick="window._openEditSchedule('${b.id}')">Edit</button>
-                    <button class="btn btn-danger-outline btn-sm" onclick="window._deleteSchedule(this, '${b.id}', '${escapeHtml(b.snapshot_name)}')">Delete</button>
+                    ${canDelete ? `<button class="btn btn-danger-outline btn-sm" onclick="window._deleteSchedule(this, '${b.id}', '${escapeHtml(b.snapshot_name)}')">Delete</button>` : ''}
                   </div>
                 </td>
               </tr>`).join('')}

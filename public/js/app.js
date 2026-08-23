@@ -163,7 +163,7 @@ function handleRoute(hash) {
   const role = state.user.role;
 
   // Guard: salesperson cannot access admin/office pages
-  const adminOfficeRoutes = ['/customers', '/users', '/activity-log', '/staff-activity'];
+  const adminOfficeRoutes = ['/users', '/activity-log', '/staff-activity'];
   if (role === 'salesperson') {
     if (adminOfficeRoutes.includes(base)) {
       navigate('/my-schedule');
@@ -297,6 +297,7 @@ function getNavItems(role) {
     return [
       { route: '/',              label: 'Dashboard',    icon: icons.dashboard },
       { route: '/my-schedule',   label: 'My Schedule',  icon: icons.schedule  },
+      { route: '/customers',     label: 'Customers',    icon: icons.customers },
       { divider: true },
       { route: '/notifications', label: 'Notifications',icon: icons.bell      },
     ];

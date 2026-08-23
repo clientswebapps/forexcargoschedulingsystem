@@ -234,7 +234,6 @@ export async function renderMySchedule(container, appState) {
                   ${isOwnBooking ? `
                     <div class="row-actions-stacked">
                       <button class="btn btn-secondary btn-sm" onclick="window._openEditSchedule('${b.id}')">Edit</button>
-                      <button class="btn btn-danger-outline btn-sm" onclick="window._deleteMySchedule(this, '${b.id}', '${escapeHtml(b.snapshot_name)}')">Delete</button>
                     </div>
                   ` : ''}
                 </td>

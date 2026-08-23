@@ -61,10 +61,10 @@ service cloud.firestore {
 
     // ── CUSTOMERS collection ─────────────────────────────────
     // - Any signed-in active user (Admin, Office Staff, Salesperson): read, create, update
-    // - Admin and Office Staff: delete
+    // - Admin and Super Admin: delete
     match /customers/{customerId} {
       allow read, create, update: if isSignedIn() && isActive();
-      allow delete: if isAdminOrOffice();
+      allow delete: if isAdmin();
     }
 
     // ── BOOKINGS collection ──────────────────────────────────
@@ -96,9 +96,8 @@ service cloud.firestore {
                            && request.resource.data.status in ['Pending','Completed','Cancelled'])
                         ));
 
-      // Delete: Admin, Office Staff, or Salesperson who created the booking
-      allow delete: if isAdminOrOffice()
-                    || (isSalesperson() && resource.data.bookedById == uid());
+      // Delete: Admin and Super Admin only
+      allow delete: if isAdmin();
     }
 
     // ── NOTIFICATIONS collection ─────────────────────────────
