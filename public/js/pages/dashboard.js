@@ -12,28 +12,84 @@ export async function renderDashboard(container, appState) {
   const uid  = appState.uid;
   const displayName = appState.user.displayName || 'User';
 
-  // Greeting and visual theme based on current time
-  const currentHour = new Date().getHours();
-  let greetingText = 'Welcome back';
-  let greetingEmoji = '👋';
-  let heroThemeClass = 'dash-hero-sunset';
+  // Greeting, emoji, and banner image based on precise time of day
+  const now = new Date();
+  let currentHour = now.getHours();
+  let currentMinute = now.getMinutes();
 
-  if (currentHour >= 5 && currentHour < 12) {
-    greetingText = 'Good morning';
+  // Test Override Support (via URL param e.g. #/?time=morning, or localStorage)
+  const hashParts = (window.location.hash || '').split('?');
+  const urlParams = new URLSearchParams(hashParts[1] || window.location.search);
+  const testTime = urlParams.get('time') || localStorage.getItem('fc_test_time');
+  if (testTime) {
+    const t = testTime.toLowerCase();
+    if (t === 'morning')   { currentHour = 9;  currentMinute = 0; }
+    else if (t === 'noon') { currentHour = 12; currentMinute = 15; }
+    else if (t === 'early-afternoon' || t === '12:30pm') { currentHour = 13; currentMinute = 0; }
+    else if (t === 'afternoon') { currentHour = 15; currentMinute = 0; }
+    else if (t === 'evening')   { currentHour = 19; currentMinute = 0; }
+    else if (t === 'night')     { currentHour = 23; currentMinute = 0; }
+    else if (t === 'dawn')      { currentHour = 4;  currentMinute = 0; }
+  }
+
+  // Global helper for instant testing in browser console: window.testBanner('morning')
+  window.testBanner = (type) => {
+    if (!type || type === 'reset' || type === 'real') {
+      localStorage.removeItem('fc_test_time');
+    } else {
+      localStorage.setItem('fc_test_time', type);
+    }
+    if (window._navigate) window._navigate('/');
+    else window.location.reload();
+  };
+
+  const totalMins = currentHour * 60 + currentMinute;
+
+  let greetingText = 'Good Morning';
+  let greetingEmoji = '☀️';
+  let bannerImage = '/images/banners/Morning.png';
+
+  // 1. 5:00am - 11:59am (300 to 719 mins) -> Good Morning (Morning.png)
+  if (totalMins >= 300 && totalMins < 720) {
+    greetingText = 'Good Morning';
     greetingEmoji = '☀️';
-    heroThemeClass = 'dash-hero-morning';
-  } else if (currentHour >= 12 && currentHour < 17) {
-    greetingText = 'Good afternoon';
+    bannerImage = '/images/banners/Morning.png';
+  }
+  // 2. 12:00pm - 12:29pm (720 to 749 mins) -> Good Noon (Morning.png)
+  else if (totalMins >= 720 && totalMins < 750) {
+    greetingText = 'Good Noon';
+    greetingEmoji = '☀️';
+    bannerImage = '/images/banners/Morning.png';
+  }
+  // 3. 12:30pm - 1:59pm (750 to 839 mins) -> Good Afternoon (Morning.png)
+  else if (totalMins >= 750 && totalMins < 840) {
+    greetingText = 'Good Afternoon';
     greetingEmoji = '🌤️';
-    heroThemeClass = 'dash-hero-sunset';
-  } else if (currentHour >= 17 && currentHour < 19) {
-    greetingText = 'Good evening';
+    bannerImage = '/images/banners/Morning.png';
+  }
+  // 4. 2:00pm - 5:59pm (840 to 1079 mins) -> Good Afternoon (Afternoon.png)
+  else if (totalMins >= 840 && totalMins < 1080) {
+    greetingText = 'Good Afternoon';
+    greetingEmoji = '🌤️';
+    bannerImage = '/images/banners/Afternoon.png';
+  }
+  // 5. 6:00pm - 9:59pm (1080 to 1319 mins) -> Good Evening (Evening.png)
+  else if (totalMins >= 1080 && totalMins < 1320) {
+    greetingText = 'Good Evening';
     greetingEmoji = '🌇';
-    heroThemeClass = 'dash-hero-sunset';
-  } else {
-    greetingText = 'Good evening';
+    bannerImage = '/images/banners/Evening.png';
+  }
+  // 6. 10:00pm - 2:59am (1320 to 1439 mins OR 0 to 179 mins) -> Good Night (Evening.png)
+  else if (totalMins >= 1320 || totalMins < 180) {
+    greetingText = 'Good Night';
     greetingEmoji = '🌙';
-    heroThemeClass = 'dash-hero-night';
+    bannerImage = '/images/banners/Evening.png';
+  }
+  // 7. 3:00am - 4:59am (180 to 299 mins) -> Good Morning (Evening.png)
+  else if (totalMins >= 180 && totalMins < 300) {
+    greetingText = 'Good Morning';
+    greetingEmoji = '☀️';
+    bannerImage = '/images/banners/Evening.png';
   }
 
   // Role badge formatting
@@ -46,10 +102,8 @@ export async function renderDashboard(container, appState) {
   const roleBadgeText = roleDisplayMap[role] || 'User';
 
   container.innerHTML = `
-    <!-- Dynamic Hero Welcome Banner with Animated Gradients -->
-    <div class="dash-hero-banner ${heroThemeClass}">
-      <div class="dash-hero-orb dash-hero-orb-1"></div>
-      <div class="dash-hero-orb dash-hero-orb-2"></div>
+    <!-- Custom Image Hero Welcome Banner -->
+    <div class="dash-hero-banner" style="background-image: url('${bannerImage}');">
       <div class="dash-hero-left">
         <div class="dash-greeting">
           <span>${greetingText}, ${escapeHtml(displayName)}</span>

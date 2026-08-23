@@ -470,12 +470,11 @@ ul { list-style: none; }
   }
 }
 
-/* ── Modern Dashboard Hero Banner & Quick Actions ─────────── */
-/* ── Modern Dynamic Dashboard Hero Banner & Quick Actions ─── */
+/* ── Modern Custom Image Dashboard Hero Banner ─── */
 .dash-hero-banner {
   color: #ffffff;
   border-radius: var(--radius-xl);
-  padding: 24px 28px;
+  padding: 26px 30px;
   margin-bottom: 24px;
   display: flex;
   justify-content: space-between;
@@ -483,113 +482,25 @@ ul { list-style: none; }
   gap: 20px;
   position: relative;
   overflow: hidden;
-  background-size: 300% 300%;
-  animation: heroGradientFlow 9s ease infinite alternate;
-  transition: background 0.8s ease, box-shadow 0.8s ease;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3), 0 4px 12px -2px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  min-height: 110px;
+  transition: background-image 0.5s ease-in-out;
 }
 
-/* 1. Morning Theme: Radiant Sunny Gold & Vibrant Sunrise Yellow */
-.dash-hero-banner.dash-hero-morning {
-  background: linear-gradient(125deg, #F59E0B 0%, #FBBF24 22%, #FCD34D 45%, #EA580C 72%, #D97706 100%);
-  box-shadow: 0 14px 34px -5px rgba(217, 119, 6, 0.48), 0 8px 14px -6px rgba(245, 158, 11, 0.35);
-  border: 1px solid rgba(254, 240, 138, 0.45);
-}
-.dash-hero-banner.dash-hero-morning .dash-hero-orb-1 {
-  background: radial-gradient(circle, rgba(254, 240, 138, 0.55) 0%, rgba(245, 158, 11, 0) 70%);
-}
-.dash-hero-banner.dash-hero-morning .dash-hero-orb-2 {
-  background: radial-gradient(circle, rgba(255, 237, 213, 0.45) 0%, rgba(234, 88, 12, 0) 70%);
-}
-
-/* 2. Sunset Theme: Blazing Vivid Dark Sunset Orange & Fiery Dusk Horizon */
-.dash-hero-banner.dash-hero-sunset {
-  background: linear-gradient(125deg, #7C2D12 0%, #C2410C 20%, #FF5722 45%, #F97316 65%, #991B1B 85%, #581C87 100%);
-  box-shadow: 0 14px 34px -5px rgba(234, 88, 12, 0.55), 0 8px 14px -6px rgba(124, 45, 18, 0.4);
-  border: 1px solid rgba(255, 138, 101, 0.4);
-}
-.dash-hero-banner.dash-hero-sunset .dash-hero-orb-1 {
-  background: radial-gradient(circle, rgba(255, 171, 145, 0.6) 0%, rgba(255, 87, 34, 0) 70%);
-}
-.dash-hero-banner.dash-hero-sunset .dash-hero-orb-2 {
-  background: radial-gradient(circle, rgba(251, 146, 60, 0.5) 0%, rgba(153, 27, 27, 0) 70%);
-}
-
-/* 3. Night Theme: Very Dark Midnight Blue / Electric Indigo / Deep Celestial Obsidian */
-.dash-hero-banner.dash-hero-night {
-  background: linear-gradient(125deg, #020617 0%, #0B192C 22%, #1E3A8A 48%, #2563EB 70%, #1E1B4B 88%, #030712 100%);
-  box-shadow: 0 14px 34px -5px rgba(2, 6, 23, 0.75), 0 8px 14px -6px rgba(30, 58, 138, 0.5);
-  border: 1px solid rgba(96, 165, 250, 0.35);
-}
-.dash-hero-banner.dash-hero-night .dash-hero-orb-1 {
-  background: radial-gradient(circle, rgba(96, 165, 250, 0.45) 0%, rgba(37, 99, 235, 0) 70%);
-}
-.dash-hero-banner.dash-hero-night .dash-hero-orb-2 {
-  background: radial-gradient(circle, rgba(167, 139, 250, 0.4) 0%, rgba(30, 27, 75, 0) 70%);
-}
-
-/* Ambient Floating Light Orbs (Fluid Mesh Motion) */
-.dash-hero-orb {
+.dash-hero-banner::before {
+  content: '';
   position: absolute;
-  border-radius: 50%;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.2) 60%, rgba(0, 0, 0, 0.1) 100%);
   pointer-events: none;
   z-index: 1;
-  filter: blur(25px);
-}
-.dash-hero-orb-1 {
-  top: -40%;
-  right: -5%;
-  width: 420px;
-  height: 420px;
-  animation: heroOrbFloat1 7s ease-in-out infinite alternate;
-}
-.dash-hero-orb-2 {
-  bottom: -40%;
-  left: 15%;
-  width: 360px;
-  height: 360px;
-  animation: heroOrbFloat2 9s ease-in-out infinite alternate;
-}
-
-@keyframes heroGradientFlow {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes heroOrbFloat1 {
-  0% {
-    transform: translate(0, 0) scale(1);
-    opacity: 0.7;
-  }
-  50% {
-    transform: translate(-50px, 30px) scale(1.25);
-    opacity: 1;
-  }
-  100% {
-    transform: translate(25px, -20px) scale(0.9);
-    opacity: 0.75;
-  }
-}
-
-@keyframes heroOrbFloat2 {
-  0% {
-    transform: translate(0, 0) scale(0.9);
-    opacity: 0.5;
-  }
-  50% {
-    transform: translate(45px, -25px) scale(1.25);
-    opacity: 0.95;
-  }
-  100% {
-    transform: translate(-30px, 15px) scale(1);
-    opacity: 0.6;
-  }
 }
 
 .dash-hero-left {
@@ -605,20 +516,22 @@ ul { list-style: none; }
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 .dash-user-badge {
   font-size: 0.72rem;
   font-weight: 600;
   padding: 3px 10px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
 }
 .dash-clock-pill {
   display: inline-flex;
@@ -626,12 +539,14 @@ ul { list-style: none; }
   gap: 8px;
   margin-top: 10px;
   padding: 5px 14px;
-  background: rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: var(--radius-full);
   font-size: 0.8rem;
   color: rgba(255, 255, 255, 0.95);
-  font-weight: 400;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 .dash-pulse-dot {
   width: 8px;
