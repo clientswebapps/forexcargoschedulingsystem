@@ -7,11 +7,28 @@ import { formatDateTime, formatBookingDateTime, statusBadge, serviceBadge, timeA
 import { openScheduleModal } from './booking-form.js';
 
 export async function renderBookingDetail(container, appState, bookingId) {
-  if (!bookingId) { container.innerHTML = errorHTML('No schedule ID provided.'); return; }
-
-  container.innerHTML = loadingHTML('Loading schedule…');
   const role  = appState.user.role;
   const uid   = appState.uid;
+  const isSales = role === 'salesperson';
+  const backRoute = isSales ? '/my-schedule' : '/schedules';
+  const backLabel = isSales ? 'My Schedule' : 'Schedules';
+
+  if (!bookingId) {
+    container.innerHTML = `
+      <div class="card" style="max-width:520px;margin:40px auto;text-align:center;padding:36px 24px;">
+        <div style="font-size:2.5rem;margin-bottom:12px;">📋</div>
+        <h2 style="font-size:1.25rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">No Schedule ID Provided</h2>
+        <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:20px;">Please select a schedule from the list.</p>
+        <div>
+          <button class="btn btn-primary btn-sm" onclick="window._navigate && window._navigate('${backRoute}')">
+            ← Back to ${backLabel}
+          </button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = loadingHTML('Loading schedule…');
 
   let b = null;
   let logs = [];
@@ -30,13 +47,33 @@ export async function renderBookingDetail(container, appState, bookingId) {
       bookingId,
       (doc) => {
         if (!doc) {
-          container.innerHTML = errorHTML('Schedule not found.');
+          container.innerHTML = `
+            <div class="card" style="max-width:520px;margin:40px auto;text-align:center;padding:36px 24px;">
+              <div style="font-size:2.5rem;margin-bottom:12px;">📋</div>
+              <h2 style="font-size:1.25rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Schedule Not Found</h2>
+              <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:20px;">This schedule may have been deleted by Admin.</p>
+              <div>
+                <button class="btn btn-primary btn-sm" onclick="window._navigate && window._navigate('${backRoute}')">
+                  ← Back to ${backLabel}
+                </button>
+              </div>
+            </div>`;
           return;
         }
 
         // Salesperson can only view their own (assigned or self-created)
         if (role === 'salesperson' && doc.salespersonId !== uid && doc.bookedById !== uid) {
-          container.innerHTML = errorHTML('You do not have permission to view this schedule.');
+          container.innerHTML = `
+            <div class="card" style="max-width:520px;margin:40px auto;text-align:center;padding:36px 24px;">
+              <div style="font-size:2.5rem;margin-bottom:12px;">🔒</div>
+              <h2 style="font-size:1.25rem;font-weight:700;color:var(--text-primary);margin-bottom:6px;">Access Restricted</h2>
+              <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:20px;">You do not have permission to view this schedule.</p>
+              <div>
+                <button class="btn btn-primary btn-sm" onclick="window._navigate && window._navigate('${backRoute}')">
+                  ← Back to ${backLabel}
+                </button>
+              </div>
+            </div>`;
           return;
         }
 

@@ -54,7 +54,12 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     if (isEdit) {
       existingBooking = await Bookings.get(bookingId);
       if (!existingBooking) {
-        container.querySelector('.modal-body').innerHTML = errorHTML('Schedule not found.');
+        container.querySelector('.modal-body').innerHTML = `
+          <div style="text-align:center;padding:24px 16px;">
+            <div style="font-size:2.2rem;margin-bottom:8px;">📋</div>
+            <div style="font-weight:700;font-size:1.1rem;color:var(--text-primary);margin-bottom:4px;">Schedule Not Found</div>
+            <div style="color:var(--text-secondary);font-size:0.85rem;">This schedule may have been deleted by Admin.</div>
+          </div>`;
         return;
       }
       if (isSales && existingBooking.salespersonId !== uid && existingBooking.bookedById !== uid) {
