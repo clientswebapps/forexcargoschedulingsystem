@@ -123,6 +123,17 @@
       <div class="topbar-title" id="topbar-page-title">Dashboard</div>
 
       <div class="topbar-actions">
+        <!-- View As Role Switcher (Super Admin Only) -->
+        <div id="topbar-view-as" class="topbar-view-as hidden" title="Super Admin: Preview system as different role">
+          <span class="topbar-view-as-label">👁️ View As:</span>
+          <select id="topbar-view-as-select" class="topbar-view-as-select" aria-label="View As Role">
+            <option value="super_admin">👑 Super Admin</option>
+            <option value="admin">🛡️ Admin</option>
+            <option value="office_staff">💼 Office Staff</option>
+            <option value="salesperson">🚗 Salesperson</option>
+          </select>
+        </div>
+
         <!-- Download / Install App -->
         <button id="topbar-download-btn" class="icon-btn download-app-btn" aria-label="Download App" title="Download / Install App">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -151,6 +162,24 @@
         </button>
       </div>
     </header>
+
+    <!-- Role Preview Mode Indicator Bar (Super Admin Only) -->
+    <div id="role-preview-bar" class="role-preview-bar hidden">
+      <div class="preview-bar-left">
+        <span class="preview-bar-icon">👁️</span>
+        <span class="preview-bar-text">Previewing app as: <strong id="preview-role-label">Salesperson</strong></span>
+        <span class="preview-bar-badge">Hidden from regular users</span>
+      </div>
+      <div class="preview-bar-right">
+        <select id="preview-role-select" class="preview-role-select" aria-label="Switch Role View">
+          <option value="super_admin">👑 Super Admin</option>
+          <option value="admin">🛡️ Admin</option>
+          <option value="office_staff">💼 Office Staff</option>
+          <option value="salesperson">🚗 Salesperson</option>
+        </select>
+        <button id="exit-preview-btn" class="preview-exit-btn">Exit Preview</button>
+      </div>
+    </div>
 
     <!-- Page Content -->
     <main id="page-content" class="page-content" role="main"></main>

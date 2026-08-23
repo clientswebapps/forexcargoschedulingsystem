@@ -72,7 +72,8 @@ firebase.auth().onAuthStateChanged(async (authUser) => {
       return;
     }
 
-    state.user = { ...userData, displayName: authUser.displayName || userData.displayName };
+    state.actualRole = userData.role;
+    state.user = { ...userData, displayName: authUser.displayName || userData.displayName, actualRole: userData.role };
     showApp();
   } catch (err) {
     console.error('Failed to load user data:', err);
@@ -98,6 +99,11 @@ function showLoginScreen(message) {
   state.uid  = null;
   state.user = null;
   state.authUser = null;
+  state.actualRole = null;
+  state.simulatedRole = null;
+
+  document.getElementById('topbar-view-as')?.classList.add('hidden');
+  document.getElementById('role-preview-bar')?.classList.add('hidden');
 
   $loading.classList.add('fade-out');
   setTimeout(() => $loading.classList.add('hidden'), 400);
@@ -116,6 +122,7 @@ function showApp() {
   buildNav();
   updateUserInfo();
   setupTopbar();
+  setupRolePreview();
   setupMobileNav();
   setupSidebarToggle();
   refreshNotifBadge();
@@ -328,7 +335,13 @@ function getNavItems(role) {
 function updateUserInfo() {
   if ($userAvatar) $userAvatar.textContent = initials(state.user.displayName);
   if ($userName)   $userName.textContent   = state.user.displayName || state.authUser.email;
-  if ($userRole)   $userRole.textContent   = roleLabel(state.user.role);
+  if ($userRole) {
+    if (state.simulatedRole) {
+      $userRole.innerHTML = `<span style="color:#BA68C8;font-weight:700;">${roleLabel(state.user.role)} (Preview)</span>`;
+    } else {
+      $userRole.textContent = roleLabel(state.user.role);
+    }
+  }
 
   const userCard = document.querySelector('.sidebar-user');
   if (userCard && !userCard._bound) {
@@ -336,6 +349,92 @@ function updateUserInfo() {
     userCard.setAttribute('title', 'Click to edit your display name');
     userCard.addEventListener('click', showChangeNameModal);
   }
+}
+
+/* ── Super Admin Role Preview (View As Simulator) ────────── */
+function setupRolePreview() {
+  const isSuper = state.actualRole === 'super_admin' || state.user?.actualRole === 'super_admin';
+  const topbarViewAs = document.getElementById('topbar-view-as');
+  const topbarSelect = document.getElementById('topbar-view-as-select');
+  const previewBar = document.getElementById('role-preview-bar');
+  const previewSelect = document.getElementById('preview-role-select');
+  const exitBtn = document.getElementById('exit-preview-btn');
+
+  if (!isSuper) {
+    if (topbarViewAs) topbarViewAs.classList.add('hidden');
+    if (previewBar) previewBar.classList.add('hidden');
+    return;
+  }
+
+  // Show topbar selector for Super Admin
+  if (topbarViewAs) topbarViewAs.classList.remove('hidden');
+
+  const onSelectChange = (e) => {
+    setRolePreview(e.target.value);
+  };
+
+  if (topbarSelect && !topbarSelect._bound) {
+    topbarSelect._bound = true;
+    topbarSelect.addEventListener('change', onSelectChange);
+  }
+
+  if (previewSelect && !previewSelect._bound) {
+    previewSelect._bound = true;
+    previewSelect.addEventListener('change', onSelectChange);
+  }
+
+  if (exitBtn && !exitBtn._bound) {
+    exitBtn._bound = true;
+    exitBtn.addEventListener('click', () => setRolePreview('super_admin'));
+  }
+}
+
+function setRolePreview(simulatedRole) {
+  const isSuper = state.actualRole === 'super_admin' || state.user?.actualRole === 'super_admin';
+  if (!isSuper) return;
+
+  const topbarSelect = document.getElementById('topbar-view-as-select');
+  const previewBar = document.getElementById('role-preview-bar');
+  const previewLabel = document.getElementById('preview-role-label');
+  const previewSelect = document.getElementById('preview-role-select');
+
+  if (simulatedRole === 'super_admin' || !simulatedRole) {
+    state.user.role = 'super_admin';
+    state.simulatedRole = null;
+    if (previewBar) previewBar.classList.add('hidden');
+    showToast('Exited Preview Mode. Returned to Super Admin view.', 'info');
+  } else {
+    state.user.role = simulatedRole;
+    state.simulatedRole = simulatedRole;
+    if (previewLabel) previewLabel.textContent = roleLabel(simulatedRole);
+    if (previewBar) previewBar.classList.remove('hidden');
+    showToast(`👁️ Previewing as ${roleLabel(simulatedRole)}. You remain completely hidden from regular users.`, 'info');
+  }
+
+  const currentVal = state.simulatedRole || 'super_admin';
+  if (topbarSelect) topbarSelect.value = currentVal;
+  if (previewSelect) previewSelect.value = currentVal;
+
+  buildNav();
+  updateUserInfo();
+
+  // Route check
+  const currentBase = '/' + (location.hash.replace(/^#\/?/, '').split('/')[0] || '');
+  if (state.user.role === 'salesperson') {
+    const adminOfficeRoutes = ['/users', '/activity-log', '/staff-activity'];
+    if (adminOfficeRoutes.includes(currentBase) || currentBase === '/schedules') {
+      navigate('/my-schedule');
+      return;
+    }
+  } else if (state.user.role !== 'super_admin' && currentBase === '/staff-activity') {
+    navigate('/');
+    return;
+  } else if (state.user.role === 'office_staff' && currentBase === '/users') {
+    navigate('/');
+    return;
+  }
+
+  handleRoute(location.hash || '#/');
 }
 
 /* ── Topbar setup ───────────────────────────────────────── */
