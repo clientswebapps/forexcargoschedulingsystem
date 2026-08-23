@@ -29,6 +29,7 @@ export async function renderActivityLog(container, appState) {
             <option value="BOOKING_CANCELLED">Schedule Cancelled</option>
             <option value="STATUS_CHANGED">Status Changed</option>
             <option value="SALESPERSON_REASSIGNED">Salesperson Reassigned</option>
+            <option value="SCHEDULES_PRINTED">Schedules Printed</option>
           </select>
         </div>
         <div class="filter-group">
@@ -156,6 +157,7 @@ function formatAction(action) {
     BOOKING_CANCELLED:     'Cancelled',
     STATUS_CHANGED:        'Status Changed',
     SALESPERSON_REASSIGNED:'Reassigned',
+    SCHEDULES_PRINTED:     'Printed Schedules',
   };
   return map[action] || action;
 }
@@ -167,6 +169,7 @@ function actionBadgeClass(action) {
     BOOKING_CANCELLED:     'badge-danger',
     STATUS_CHANGED:        'badge-warning',
     SALESPERSON_REASSIGNED:'badge-navy',
+    SCHEDULES_PRINTED:     'badge-purple',
   };
   return map[action] || 'badge-gray';
 }

@@ -5,7 +5,7 @@
  *   Without:          "Forex Cargo Schedule Date: [date]"
  */
 'use strict';
-import { Bookings } from '../db.js';
+import { Bookings, ActivityLog } from '../db.js';
 import { formatDateTime, formatDate, formatBookingDateTime, formatBookingTime, statusBadge, serviceBadge, loadingHTML, errorHTML, escapeHtml } from '../utils.js';
 
 export async function renderPrint(container, appState, queryString = '') {
@@ -52,7 +52,7 @@ export async function renderPrint(container, appState, queryString = '') {
       </div>
       <div class="page-actions" id="print-controls">
         <button class="btn btn-secondary" onclick="window._navigate && window._navigate(-1)">← Back</button>
-        <button class="btn btn-primary" onclick="window.print()">
+        <button class="btn btn-primary" id="btn-trigger-print">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           Print
         </button>
@@ -145,6 +145,29 @@ export async function renderPrint(container, appState, queryString = '') {
           </tbody>
         </table>
       </div>`;
+
+    // Attach print trigger with activity logging
+    let hasLoggedPrint = false;
+    const logAndPrint = async () => {
+      if (!hasLoggedPrint) {
+        hasLoggedPrint = true;
+        try {
+          await ActivityLog.write({
+            action: 'SCHEDULES_PRINTED',
+            details: {
+              schedulesCount: bookings.length,
+              dateRange,
+              salesperson: effectiveSalesName || 'All Salespersons',
+              ...(scheduledPeriod ? { period: scheduledPeriod } : {}),
+              ...(status ? { status } : {}),
+            }
+          });
+        } catch (_) {}
+      }
+      window.print();
+    };
+
+    document.getElementById('btn-trigger-print')?.addEventListener('click', logAndPrint);
 
   } catch (err) {
     document.getElementById('print-table-area').innerHTML = errorHTML('Failed to load schedules for printing.');
