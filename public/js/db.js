@@ -45,19 +45,19 @@ export const Users = {
     return collData(snap);
   },
 
-  async getActiveSalespersons() {
+  async getActiveSalespersons(includeInvisible = false) {
     const snap = await db.collection('users')
       .where('role', '==', 'salesperson')
       .get();
     return collData(snap)
-      .filter(u => u.isActive !== false)
+      .filter(u => u.isActive !== false && (includeInvisible || !u.isInvisible))
       .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
   },
 
-  async getActiveStaff() {
+  async getActiveStaff(includeInvisible = false) {
     const snap = await db.collection('users').get();
     return collData(snap)
-      .filter(u => u.isActive !== false && u.role !== 'super_admin')
+      .filter(u => u.isActive !== false && u.role !== 'super_admin' && (includeInvisible || !u.isInvisible))
       .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
   },
 
@@ -66,6 +66,7 @@ export const Users = {
       displayName: data.displayName,
       email:       data.email,
       role:        data.role,
+      isInvisible: !!data.isInvisible,
       isActive:    true,
       createdAt:   serverTs(),
       updatedAt:   serverTs(),

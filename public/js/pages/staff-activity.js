@@ -304,6 +304,7 @@ export async function renderStaffActivity(container, appState) {
                       <div>
                         <div class="font-medium flex items-center gap-1">
                           ${escapeHtml(u.displayName || '—')}
+                          ${u.isInvisible ? '<span class="badge" style="background:#4A148C;color:#fff;font-size:0.65rem;padding:1px 5px;" title="Invisible test account">👻 Test</span>' : ''}
                           ${isMe ? '<span class="badge badge-gray text-xs" style="padding:1px 5px;">You</span>' : ''}
                         </div>
                         <div class="text-xs text-secondary">${escapeHtml(u.email || '—')}</div>

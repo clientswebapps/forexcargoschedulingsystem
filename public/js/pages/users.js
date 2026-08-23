@@ -45,8 +45,8 @@ export async function renderUsers(container, appState) {
     try {
       unsubscribe = Users.onSnapshot((list) => {
         const isSuper = appState.user.role === 'super_admin';
-        // Hide super_admin accounts from other users
-        allUsers = isSuper ? list : list.filter(u => u.role !== 'super_admin');
+        // Regular admins only see visible users and cannot see super_admin accounts or invisible test accounts
+        allUsers = isSuper ? list : list.filter(u => u.role !== 'super_admin' && !u.isInvisible);
         applySearch();
       });
     } catch (err) {
@@ -73,6 +73,7 @@ export async function renderUsers(container, appState) {
                   <div class="flex items-center gap-2">
                     <div class="avatar" style="background:${avatarColor(u.role)}">${initials(u.displayName)}</div>
                     <span class="font-medium">${escapeHtml(u.displayName || '—')}</span>
+                    ${u.isInvisible ? '<span class="badge" style="background:#4A148C;color:#fff;font-size:0.68rem;padding:2px 6px;margin-left:2px;" title="Invisible test account — only Super Admin can see this">👻 Test Account</span>' : ''}
                     ${u.id === appState.uid ? '<span class="badge badge-gray text-xs">You</span>' : ''}
                   </div>
                 </td>
@@ -186,6 +187,16 @@ export async function renderUsers(container, appState) {
           </select>
           ${isSelf ? '<div class="form-hint">You cannot change your own role.</div>' : ''}
         </div>
+        ${isCurrentSuper && !isSelf ? `
+        <div class="form-group" style="background:var(--light-gray);border-radius:var(--radius-md);padding:10px 14px;margin-top:8px;border:1px solid rgba(74,20,140,0.15);">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;font-weight:600;font-size:0.85rem;color:#4A148C;">
+            <input type="checkbox" id="uf-invisible" ${user?.isInvisible ? 'checked' : ''} style="width:16px;height:16px;accent-color:#4A148C;">
+            <span>👻 Invisible / Test Account</span>
+          </label>
+          <div class="form-hint" style="margin-top:4px;font-size:0.75rem;color:var(--secondary);">
+            Hidden completely from all regular Admins, Office Staff, and Salespersons. Only Super Admin can see and manage this account.
+          </div>
+        </div>` : ''}
         <div id="uf-err" class="form-error hidden"></div>`,
       confirmText: isEdit ? 'Save Changes' : 'Create User',
       cancelText: 'Cancel',
@@ -193,15 +204,20 @@ export async function renderUsers(container, appState) {
         const name     = document.getElementById('uf-name').value.trim();
         const roleVal  = isSelf ? user.role : document.getElementById('uf-role').value;
         const errEl    = document.getElementById('uf-err');
+        const isInvisible = isCurrentSuper && !isSelf ? !!document.getElementById('uf-invisible')?.checked : (user?.isInvisible || false);
 
         if (!name) { errEl.textContent = 'Display name is required.'; errEl.classList.remove('hidden'); throw new Error('validation'); }
 
         if (isEdit) {
-          await Users.update(user.id, { displayName: name, role: roleVal });
+          await Users.update(user.id, { 
+            displayName: name, 
+            role: roleVal,
+            ...(isCurrentSuper && !isSelf ? { isInvisible } : {})
+          });
           try {
             await ActivityLog.write({
               action: 'USER_UPDATED',
-              details: { targetUserId: user.id, targetUserName: name, role: roleVal, email: user.email }
+              details: { targetUserId: user.id, targetUserName: name, role: roleVal, email: user.email, isInvisible }
             });
           } catch (_) {}
           showToast('User updated successfully.', 'success');
@@ -216,11 +232,11 @@ export async function renderUsers(container, appState) {
           // Set display name
           await AuthREST.updateDisplayName(idToken, name);
           // Create Firestore document
-          await Users.create(newUid, { displayName: name, email, role: roleVal });
+          await Users.create(newUid, { displayName: name, email, role: roleVal, isInvisible });
           try {
             await ActivityLog.write({
               action: 'USER_CREATED',
-              details: { targetUserId: newUid, targetUserName: name, role: roleVal, email }
+              details: { targetUserId: newUid, targetUserName: name, role: roleVal, email, isInvisible }
             });
           } catch (_) {}
           showToast('User created successfully.', 'success');

@@ -46,8 +46,9 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
 
   try {
     if (!isSales) {
-      allSalespersons = await Users.getActiveSalespersons();
-      allStaff        = await Users.getActiveStaff();
+      const isSuper = role === 'super_admin';
+      allSalespersons = await Users.getActiveSalespersons(isSuper);
+      allStaff        = await Users.getActiveStaff(isSuper);
     }
 
     if (isEdit) {

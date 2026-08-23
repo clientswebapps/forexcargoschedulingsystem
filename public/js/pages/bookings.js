@@ -98,10 +98,9 @@ export async function renderBookings(container, appState) {
     </div>`;
 
   // Populate salesperson dropdown
-  let allStaff = [];
   try {
-    allStaff = await Users.getAll();
-    const salespeople = allStaff.filter(u => u.role === 'salesperson');
+    const isSuper = role === 'super_admin';
+    const salespeople = await Users.getActiveSalespersons(isSuper);
     const sEl = document.getElementById('f-salesperson');
     if (sEl) salespeople.forEach(u => sEl.add(new Option(u.displayName, u.id)));
   } catch(_) {}
