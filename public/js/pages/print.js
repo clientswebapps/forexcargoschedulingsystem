@@ -135,8 +135,8 @@ export async function renderPrint(container, appState, queryString = '') {
                 <td class="text-sm text-secondary">${escapeHtml(b.snapshot_address || '—')}</td>
                 <td>
                   ${serviceBadge(b.serviceType)}
-                  ${b.serviceDetails ? `<div class="text-xs text-secondary mt-1">${escapeHtml(b.serviceDetails.slice(0,60))}${b.serviceDetails.length>60?'…':''}</div>` : ''}
-                  ${b.notes ? `<div class="text-xs text-secondary" style="font-style:italic">${escapeHtml(b.notes.slice(0,40))}</div>` : ''}
+                  ${b.serviceDetails ? `<div class="text-xs text-secondary mt-1">${escapeHtml(b.serviceDetails.slice(0,150))}${b.serviceDetails.length>150?'…':''}</div>` : ''}
+                  ${b.notes ? `<div class="text-xs text-secondary" style="font-style:italic">${escapeHtml(b.notes.slice(0,150))}${b.notes.length>150?'…':''}</div>` : ''}
                 </td>
                 ${showSalespersonColumn ? `<td class="text-sm">${escapeHtml(b.salespersonName || '—')}</td>` : ''}
                 <td class="text-sm text-secondary">${escapeHtml(b.bookedByName || '—')}</td>
