@@ -147,7 +147,11 @@ function navigate(path) {
   location.hash = '#' + (path.startsWith('/') ? path : '/' + path);
 }
 
-function handleRoute(hash) {
+let currentRouteToken = 0;
+
+async function handleRoute(hash) {
+  const routeToken = ++currentRouteToken;
+
   // Clean up any active listeners from previous view
   if (state.cleanup) {
     try {
@@ -194,47 +198,57 @@ function handleRoute(hash) {
   updatePresenceRoute(location.hash || '#/');
 
   let title = 'Dashboard';
-  let cleanupFn = null;
+  let cleanupPromiseOrFn = null;
 
   if (path === '/' || path === '/dashboard' || path === '') {
     title = 'Dashboard';
-    cleanupFn = renderDashboard($content, state);
+    cleanupPromiseOrFn = renderDashboard($content, state);
   } else if (path === '/schedules' || path === '/bookings') {
     title = 'Schedules';
-    cleanupFn = renderBookings($content, state);
+    cleanupPromiseOrFn = renderBookings($content, state);
   } else if (path === '/schedules/new' || path === '/bookings/new') {
     title = 'Create Schedule';
-    cleanupFn = renderBookingForm($content, state, null);
+    cleanupPromiseOrFn = renderBookingForm($content, state, null);
   } else if ((segments[0] === 'schedules' || segments[0] === 'bookings') && segments[1] === 'edit' && segments[2]) {
     title = 'Edit Schedule';
-    cleanupFn = renderBookingForm($content, state, segments[2]);
+    cleanupPromiseOrFn = renderBookingForm($content, state, segments[2]);
   } else if ((segments[0] === 'schedules' || segments[0] === 'bookings') && segments[1] === 'view' && segments[2]) {
     title = 'Schedule Detail';
-    cleanupFn = renderBookingDetail($content, state, segments[2]);
+    cleanupPromiseOrFn = renderBookingDetail($content, state, segments[2]);
   } else if (path === '/my-schedule') {
     title = 'My Schedule';
-    cleanupFn = renderMySchedule($content, state);
+    cleanupPromiseOrFn = renderMySchedule($content, state);
   } else if (path === '/customers') {
     title = 'Customers';
-    cleanupFn = renderCustomers($content, state);
+    cleanupPromiseOrFn = renderCustomers($content, state);
   } else if (path === '/users') {
     title = 'User Management';
-    cleanupFn = renderUsers($content, state);
+    cleanupPromiseOrFn = renderUsers($content, state);
   } else if (path === '/notifications') {
     title = 'Notifications';
-    cleanupFn = renderNotifications($content, state);
+    cleanupPromiseOrFn = renderNotifications($content, state);
   } else if (path === '/activity-log') {
     title = 'Activity Log';
-    cleanupFn = renderActivityLog($content, state);
+    cleanupPromiseOrFn = renderActivityLog($content, state);
   } else if (path === '/staff-activity') {
     title = 'Staff Activity & Live Presence';
-    cleanupFn = renderStaffActivity($content, state);
+    cleanupPromiseOrFn = renderStaffActivity($content, state);
   } else if (path === '/print') {
     title = 'Print Schedule';
-    cleanupFn = renderPrint($content, state, query || '');
+    cleanupPromiseOrFn = renderPrint($content, state, query || '');
   } else {
     // 404 — redirect to home
     navigate('/');
+    return;
+  }
+
+  const cleanupFn = cleanupPromiseOrFn instanceof Promise ? await cleanupPromiseOrFn : cleanupPromiseOrFn;
+
+  // If user navigated elsewhere before this page finished resolving, immediately clean up
+  if (routeToken !== currentRouteToken) {
+    if (typeof cleanupFn === 'function') {
+      try { cleanupFn(); } catch (_) {}
+    }
     return;
   }
 

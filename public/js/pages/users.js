@@ -56,6 +56,7 @@ export async function renderUsers(container, appState) {
 
   function renderTable(users) {
     const el = document.getElementById('users-table');
+    if (!el) return;
     if (!users.length) {
       el.innerHTML = `<div class="table-empty">No users found.</div>`;
       return;
