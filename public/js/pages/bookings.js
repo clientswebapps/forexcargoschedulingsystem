@@ -282,11 +282,13 @@ export async function renderBookings(container, appState) {
 
     try {
       await Bookings.updateStatus(id, newStatus, reason);
-      await ActivityLog.write({
-        bookingId: id,
-        action: 'STATUS_CHANGED',
-        details: { from: prevStatus, to: newStatus, ...(reason ? { reason } : {}) }
-      });
+      try {
+        await ActivityLog.write({
+          bookingId: id,
+          action: 'STATUS_CHANGED',
+          details: { from: prevStatus, to: newStatus, ...(reason ? { reason } : {}) }
+        });
+      } catch (_) {}
       showToast(`Status updated to ${newStatus}.`, 'success');
     } catch (err) {
       console.error('Failed to update status:', err);

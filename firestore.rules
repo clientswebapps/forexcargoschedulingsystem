@@ -20,39 +20,24 @@ service cloud.firestore {
       return userDoc().role;
     }
 
-    function isActive() {
-      return userDoc().isActive == true;
-    }
-
     function isSuperAdmin() {
-      return isSignedIn() && isActive() && role() == 'super_admin';
+      return isSignedIn() && role() == 'super_admin';
     }
 
     function isAdmin() {
-      return isSignedIn() && isActive() && (role() == 'admin' || role() == 'super_admin');
-    }
-
-    function isSalesperson() {
-      return isSignedIn() && isActive() && role() == 'salesperson';
+      return isSignedIn() && (role() == 'admin' || role() == 'super_admin');
     }
 
     function isAdminOrOffice() {
-      return isSignedIn() && isActive() && (role() == 'admin' || role() == 'super_admin' || role() == 'office_staff');
+      return isSignedIn() && (role() == 'admin' || role() == 'super_admin' || role() == 'office_staff');
     }
 
     // ── USERS collection ────────────────────────────────────
-    // - Super Admin: full unrestricted access to all user docs
-    // - Admin: manage non-super-admin users; cannot create or promote to super_admin or set invisible
-    // - Any authenticated active user: read their own doc
-    // - No user can delete user docs
     match /users/{userId} {
-      allow read: if isSignedIn() && (uid() == userId || isAdminOrOffice());
-      allow create: if isSignedIn() && (
-        (uid() == userId && request.resource.data.role != 'super_admin' && (!('isInvisible' in request.resource.data) || request.resource.data.isInvisible == false))
-        || (isAdmin() && (request.resource.data.role != 'super_admin' || isSuperAdmin()) && (!('isInvisible' in request.resource.data) || request.resource.data.isInvisible == false || isSuperAdmin()))
-      );
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
       allow update: if isSignedIn() && (
-        (uid() == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isActive', 'isInvisible']))
+        (uid() == userId && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'isInvisible']))
         || (isAdmin() && resource.data.role != 'super_admin' && request.resource.data.role != 'super_admin' && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isInvisible']))
         || isSuperAdmin()
       );
@@ -60,76 +45,29 @@ service cloud.firestore {
     }
 
     // ── CUSTOMERS collection ─────────────────────────────────
-    // - Any signed-in active user (Admin, Office Staff, Salesperson): read, create, update
-    // - Admin and Super Admin: delete
     match /customers/{customerId} {
-      allow read, create, update: if isSignedIn() && isActive();
+      allow read, create, update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     // ── BOOKINGS collection ──────────────────────────────────
+    // Any signed-in user can read, create, and update schedules
     match /bookings/{bookingId} {
-      allow read: if isAdminOrOffice()
-                  || (isSalesperson()
-                      && (resource.data.salespersonId == uid() || resource.data.bookedById == uid()));
-
-      // Create:
-      //   Admin/Office: any booking
-      //   Salesperson: only if assigning to themselves and booking themselves
-      allow create: if isAdminOrOffice()
-                    || (isSalesperson()
-                        && request.resource.data.salespersonId == uid()
-                        && request.resource.data.bookedById == uid());
-
-      // Update:
-      //   Admin/Office: any field
-      //   Salesperson:
-      //     - If they created the booking themselves, they can fully update it (except bookedById).
-      //     - If they are assigned but did not create it, they can only update status and completionNotes (must be Pending or Completed).
-      allow update: if isAdminOrOffice()
-                    || (isSalesperson()
-                        && (
-                          (resource.data.bookedById == uid() && request.resource.data.bookedById == uid())
-                          ||
-                          (resource.data.salespersonId == uid()
-                           && onlyUpdating(['completionNotes','status','statusReason','updatedAt','updatedById'])
-                           && request.resource.data.status in ['Pending','Completed','Cancelled','Others'])
-                        ));
-
-      // Delete: Admin and Super Admin only
+      allow read, create, update: if isSignedIn();
       allow delete: if isAdmin();
     }
 
     // ── NOTIFICATIONS collection ─────────────────────────────
-    // - Any signed-in active user: read/update their own notifications
-    // - Create: any signed-in active user (written by client during booking actions)
-    // - Delete: nobody
     match /notifications/{notifId} {
-      allow read:   if isSignedIn() && isActive()
-                    && resource.data.recipientId == uid();
-      allow create: if isSignedIn() && isActive()
-                    && request.resource.data.keys().hasAll(['recipientId', 'type', 'message', 'read'])
-                    && request.resource.data.read == false;
-      allow update: if isSignedIn() && isActive()
-                    && resource.data.recipientId == uid()
-                    && onlyUpdating(['read']);
+      allow read, update: if isSignedIn() && resource.data.recipientId == uid();
+      allow create: if isSignedIn();
       allow delete: if false;
     }
 
     // ── ACTIVITY LOG collection ──────────────────────────────
-    // - Admin and Office Staff: read all
-    // - Any signed-in active user: create (write audit entries)
-    // - No updates or deletes (append-only)
     match /activityLog/{logId} {
-      allow read:   if isAdminOrOffice();
-      allow create: if isSignedIn() && isActive();
-      allow update: if false;
-      allow delete: if false;
-    }
-
-    // ── Helper: field-level update restriction ───────────────
-    function onlyUpdating(fields) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+      allow read, create: if isSignedIn();
+      allow update, delete: if false;
     }
   }
 }
