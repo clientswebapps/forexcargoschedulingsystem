@@ -210,7 +210,7 @@ export function showToast(message, type = 'info', duration = 3000) {
 
 /* ── Modal ───────────────────────────────────────────────── */
 
-export function showModal({ title, body, confirmText = 'Confirm', cancelText = 'Cancel', onConfirm, danger = false, wide = false }) {
+export function showModal({ title, body, confirmText = 'Confirm', cancelText = 'Cancel', onConfirm, onCancel, danger = false, wide = false }) {
   closeModal();
   const container = document.getElementById('modal-container');
   container.innerHTML = `
@@ -228,20 +228,33 @@ export function showModal({ title, body, confirmText = 'Confirm', cancelText = '
       </div>
     </div>`;
   const overlay = container.querySelector('#modal-overlay');
-  const close = () => closeModal();
-  document.getElementById('modal-close-btn')?.addEventListener('click', close);
+  let isConfirmed = false;
+  const dismiss = () => {
+    if (!isConfirmed && onCancel) onCancel();
+    closeModal();
+  };
+  document.getElementById('modal-close-btn')?.addEventListener('click', dismiss);
   if (cancelText) {
-    document.getElementById('modal-cancel-btn')?.addEventListener('click', close);
+    document.getElementById('modal-cancel-btn')?.addEventListener('click', dismiss);
   }
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.addEventListener('click', e => { if (e.target === overlay) dismiss(); });
   if (onConfirm) {
     document.getElementById('modal-confirm-btn')?.addEventListener('click', async () => {
       const btn = document.getElementById('modal-confirm-btn');
       btn.disabled = true;
-      try { await onConfirm(); close(); } catch (err) { btn.disabled = false; }
+      try {
+        await onConfirm();
+        isConfirmed = true;
+        closeModal();
+      } catch (err) {
+        btn.disabled = false;
+      }
     });
   } else if (confirmText) {
-    document.getElementById('modal-confirm-btn')?.addEventListener('click', close);
+    document.getElementById('modal-confirm-btn')?.addEventListener('click', () => {
+      isConfirmed = true;
+      closeModal();
+    });
   }
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('modal-visible')));
 }
@@ -262,6 +275,7 @@ export function statusBadge(status) {
     'Pending':   '<span class="badge badge-warning">Pending</span>',
     'Completed': '<span class="badge badge-success">Completed</span>',
     'Cancelled': '<span class="badge badge-danger">Cancelled</span>',
+    'Others':    '<span class="badge badge-others">Others</span>',
   };
   return map[status] || `<span class="badge badge-gray">${escapeHtml(status)}</span>`;
 }

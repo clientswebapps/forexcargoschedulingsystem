@@ -199,22 +199,23 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
               <input type="text" class="form-control form-control-readonly"
                 value="${escapeHtml(b?.bookedByName || appState.user.displayName || 'Admin')}" readonly>
             `}
+            ${isEdit ? `
+              <div class="form-group" style="margin-top:12px;margin-bottom:0">
+                <label class="form-label required" for="bf-status">Status</label>
+                <select id="bf-status" class="form-control">
+                  <option value="Pending"   ${b?.status==='Pending'?'selected':''}>Pending</option>
+                  <option value="Completed" ${b?.status==='Completed'?'selected':''}>Completed</option>
+                  <option value="Others"    ${b?.status==='Others'?'selected':''}>Others</option>
+                  <option value="Cancelled" ${b?.status==='Cancelled'?'selected':''}>Cancelled</option>
+                </select>
+              </div>
+              <div id="bf-status-reason-group" class="form-group" style="margin-top:12px;margin-bottom:0;${b?.status === 'Others' ? '' : 'display:none;'}">
+                <label class="form-label required" for="bf-status-reason">Reason for "Others"</label>
+                <input type="text" id="bf-status-reason" class="form-control"
+                  placeholder="e.g. Customer not answering call, rescheduled…"
+                  value="${escapeHtml(b?.statusReason || '')}">
+              </div>` : ''}
           </div>
-
-          ${isEdit ? `
-          <div class="form-group" style="margin-bottom:0">
-            <label class="form-label required" for="bf-status">Status</label>
-            <select id="bf-status" class="form-control">
-              ${isSales && !isSalesCreator ? `
-                <option value="Pending"   ${b?.status==='Pending'?'selected':''}>Pending</option>
-                <option value="Completed" ${b?.status==='Completed'?'selected':''}>Completed</option>
-              ` : `
-                <option value="Pending"   ${b?.status==='Pending'?'selected':''}>Pending</option>
-                <option value="Completed" ${b?.status==='Completed'?'selected':''}>Completed</option>
-                <option value="Cancelled" ${b?.status==='Cancelled'?'selected':''}>Cancelled</option>
-              `}
-            </select>
-          </div>` : ''}
         </div>
 
         <!-- Completion Notes (Edit mode only) -->
@@ -312,6 +313,19 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     });
   }
 
+  // ── Toggle Reason for Others Field on Status Change ──
+  const statusSelectEl = document.getElementById('bf-status');
+  const statusReasonGroupEl = document.getElementById('bf-status-reason-group');
+  if (statusSelectEl && statusReasonGroupEl) {
+    statusSelectEl.addEventListener('change', () => {
+      const isOthers = statusSelectEl.value === 'Others';
+      statusReasonGroupEl.style.display = isOthers ? 'block' : 'none';
+      if (isOthers) {
+        document.getElementById('bf-status-reason')?.focus();
+      }
+    });
+  }
+
   // ── Save ──────────────────────────────────────────
   document.getElementById('save-btn').addEventListener('click', async () => {
     const canEditAll = !isSales || !isEdit || isSalesCreator;
@@ -332,6 +346,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
       ? (document.getElementById('bf-booked-by')?.value.trim() || '')
       : (b?.bookedByName || appState.user.displayName || 'Admin');
     const statusVal = isEdit ? document.getElementById('bf-status').value : 'Pending';
+    const statusReason = (document.getElementById('bf-status-reason')?.value || '').trim();
     const completion = isEdit ? document.getElementById('bf-completion')?.value.trim() || '' : '';
 
     // Validation
@@ -343,6 +358,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     if (canEditAll && !dateVal) errors.push('Scheduled date is required.');
     if (canEditAll && !timeVal) errors.push('Scheduled time is required (e.g. 10:00, Any).');
     if (isOfficeStaff && !bookedByName) errors.push('Created By (Staff Name) is required.');
+    if (statusVal === 'Others' && !statusReason) errors.push('Reason for "Others" status is required.');
     if (errors.length) {
       errEl.innerHTML = errors.map(e => `<div>• ${escapeHtml(e)}</div>`).join('');
       errEl.classList.remove('hidden');
@@ -391,6 +407,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
         if (isSales && !isSalesCreator) {
           updates = {
             status:          statusVal,
+            statusReason:    statusVal === 'Others' ? statusReason : '',
             completionNotes: completion,
           };
         } else {
@@ -403,6 +420,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
             notes,
             completionNotes:        completion,
             status:                 statusVal,
+            statusReason:           statusVal === 'Others' ? statusReason : '',
             serviceType:            typeVal,
             scheduledDate:          scheduledDate,
             scheduledTime:          timeVal,
@@ -419,7 +437,7 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
         await ActivityLog.write({
           bookingId,
           action: 'BOOKING_UPDATED',
-          details: { status: statusVal, salesperson: salesName }
+          details: { status: statusVal, ...(statusVal === 'Others' && statusReason ? { reason: statusReason } : {}), salesperson: salesName }
         });
 
         // Notify on reassignment

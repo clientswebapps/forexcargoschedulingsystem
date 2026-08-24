@@ -92,8 +92,8 @@ service cloud.firestore {
                           (resource.data.bookedById == uid() && request.resource.data.bookedById == uid())
                           ||
                           (resource.data.salespersonId == uid()
-                           && onlyUpdating(['completionNotes','status','updatedAt','updatedById'])
-                           && request.resource.data.status in ['Pending','Completed','Cancelled'])
+                           && onlyUpdating(['completionNotes','status','statusReason','updatedAt','updatedById'])
+                           && request.resource.data.status in ['Pending','Completed','Cancelled','Others'])
                         ));
 
       // Delete: Admin and Super Admin only

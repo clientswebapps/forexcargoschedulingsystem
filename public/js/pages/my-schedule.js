@@ -71,7 +71,7 @@ export async function renderMySchedule(container, appState) {
           <div class="filter-label">Status</div>
           <select id="ms-status" class="filter-control">
             <option value="">All Statuses</option>
-            <option>Pending</option><option>Completed</option><option>Cancelled</option>
+            <option>Pending</option><option>Completed</option><option>Others</option><option>Cancelled</option>
           </select>
         </div>
 
@@ -103,14 +103,12 @@ export async function renderMySchedule(container, appState) {
     }
 
     const searchInput = document.getElementById('ms-search');
-    const bookedByInput = document.getElementById('ms-booked-by');
     const searchVal = (searchInput?.value || '').trim();
-    const bookedByVal = (bookedByInput?.value || '').trim();
-    const hasSearch = searchVal.length > 0 || bookedByVal.length > 0;
+    const hasSearch = searchVal.length > 0;
 
     let dateFrom, dateTo;
     if (hasSearch) {
-      // EXCEPTION: When search bar is used, search across ALL dates / all time
+      // EXCEPTION: When searching, search across ALL dates / all time
       dateFrom = undefined;
       dateTo   = undefined;
     } else {
@@ -122,8 +120,8 @@ export async function renderMySchedule(container, appState) {
       dateTo   = range.dateTo;
     }
 
-    const status = document.getElementById('ms-status')?.value;
-    const period = document.getElementById('ms-period')?.value;
+    const fStatus = document.getElementById('ms-status')?.value;
+    const fPeriod = document.getElementById('ms-period')?.value;
 
     const tableEl = document.getElementById('ms-table');
     if (tableEl && !allBookings.length) {
@@ -134,10 +132,10 @@ export async function renderMySchedule(container, appState) {
       unsubscribe = Bookings.onMineSnapshot(
         uid,
         {
+          status:          fStatus || undefined,
           dateFrom:        dateFrom || undefined,
-          dateTo:          dateTo   || undefined,
-          status:          status   || undefined,
-          scheduledPeriod: period   || undefined,
+          dateTo:          dateTo || undefined,
+          scheduledPeriod: fPeriod || undefined,
         },
         (records) => {
           allBookings = records;
@@ -145,17 +143,16 @@ export async function renderMySchedule(container, appState) {
         },
         (err) => {
           const el = document.getElementById('ms-table');
-          if (el) el.innerHTML = errorHTML('Failed to sync your schedule in real time: ' + (err.message || err));
+          if (el) el.innerHTML = errorHTML('Failed to sync schedules in real time: ' + (err.message || err));
         }
       );
     } catch (err) {
-      if (tableEl) tableEl.innerHTML = errorHTML('Failed to load your schedule.');
+      if (tableEl) tableEl.innerHTML = errorHTML('Failed to load schedules.');
     }
   }
 
   function applySearch() {
-    const searchInput = document.getElementById('ms-search');
-    const rawQ = (searchInput?.value || '').trim().toLowerCase();
+    const rawQ = (document.getElementById('ms-search')?.value || '').trim().toLowerCase();
     const cleanQ = rawQ.replace(/[\s\-\+\(\)]/g, '');
 
     filtered = allBookings.filter(b => {
@@ -168,6 +165,7 @@ export async function renderMySchedule(container, appState) {
         const service = (b.serviceType || '').toLowerCase();
         const details = (b.serviceDetails || '').toLowerCase();
         const notes = (b.notes || '').toLowerCase();
+        const reason = (b.statusReason || '').toLowerCase();
 
         return name.includes(rawQ) ||
                phone.includes(rawQ) ||
@@ -176,7 +174,8 @@ export async function renderMySchedule(container, appState) {
                id.includes(rawQ) ||
                service.includes(rawQ) ||
                details.includes(rawQ) ||
-               notes.includes(rawQ);
+               notes.includes(rawQ) ||
+               reason.includes(rawQ);
       }
       return true;
     });
@@ -210,8 +209,9 @@ export async function renderMySchedule(container, appState) {
           <tbody>
             ${list.map(b => {
               const isOwnBooking = b.bookedById === uid;
+              const statusSlug = (b.status || 'pending').toLowerCase().replace(/\s+/g, '-');
               return `
-              <tr class="clickable" onclick="window._navigate('/schedules/view/${b.id}')">
+              <tr class="clickable row-status-${statusSlug}" data-id="${b.id}" onclick="window._navigate('/schedules/view/${b.id}')">
                 <td class="text-sm" style="white-space:nowrap">${formatDate(b.scheduledDate)}</td>
                 <td class="text-sm" style="white-space:nowrap">${escapeHtml(b.scheduledTime || '')} <span class="badge badge-gray text-xs" style="margin-left: 2px;">${escapeHtml(b.scheduledPeriod || 'Anytime')}</span></td>
                 <td><div class="font-medium">${escapeHtml(b.snapshot_name)}</div>
@@ -221,14 +221,16 @@ export async function renderMySchedule(container, appState) {
                     <div class="text-xs text-secondary mt-1">${escapeHtml((b.serviceDetails||'').slice(0,30))}${(b.serviceDetails||'').length>30?'…':''}</div></td>
                 <td class="text-sm text-secondary">${escapeHtml(b.bookedByName || '—')}</td>
                 <td onclick="event.stopPropagation()">
-                  <select class="status-select status-select-${(b.status||'pending').toLowerCase()}"
+                  <select class="status-select status-select-${statusSlug}"
                     data-id="${b.id}"
                     data-current="${b.status}"
-                    onchange="window._updateScheduleStatus(this, '${b.id}', '${b.status}')">
+                    onchange="window._updateScheduleStatus(this, '${b.id}', this.getAttribute('data-current') || '${b.status}')">
                     <option value="Pending" ${b.status === 'Pending' ? 'selected' : ''}>Pending</option>
                     <option value="Completed" ${b.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                    <option value="Others" ${b.status === 'Others' ? 'selected' : ''}>Others</option>
                     <option value="Cancelled" ${b.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
                   </select>
+                  <div class="status-reason-note" id="ms-status-reason-${b.id}" title="${escapeHtml(b.statusReason || '')}">${b.status === 'Others' && b.statusReason ? `“${escapeHtml(b.statusReason)}”` : ''}</div>
                 </td>
                 <td style="text-align:right" onclick="event.stopPropagation()">
                   ${isOwnBooking ? `
@@ -253,8 +255,7 @@ export async function renderMySchedule(container, appState) {
   let prevHasMsSearch = false;
   const onMsSearchInput = () => {
     const q1 = (document.getElementById('ms-search')?.value || '').trim();
-    const q2 = (document.getElementById('ms-booked-by')?.value || '').trim();
-    const hasSearch = q1.length > 0 || q2.length > 0;
+    const hasSearch = q1.length > 0;
     if (hasSearch !== prevHasMsSearch) {
       prevHasMsSearch = hasSearch;
       load(); // Reload query across all dates
@@ -313,32 +314,92 @@ export async function renderMySchedule(container, appState) {
     window._navigate && window._navigate('/print?' + params.toString());
   });
 
-  // Inline status change handler
-  window._updateScheduleStatus = async (selectEl, id, prevStatus) => {
-    const newStatus = selectEl.value;
-    if (newStatus === prevStatus) return;
+  async function applyMyScheduleStatusChange(selectEl, id, prevStatus, newStatus, reason = '') {
+    const newSlug = newStatus.toLowerCase().replace(/\s+/g, '-');
+    const prevSlug = prevStatus.toLowerCase().replace(/\s+/g, '-');
 
+    const rowEl = selectEl.closest('tr');
+    if (rowEl) {
+      rowEl.classList.remove(`row-status-${prevSlug}`);
+      rowEl.classList.add(`row-status-${newSlug}`);
+    }
+    selectEl.className = `status-select status-select-${newSlug}`;
+    selectEl.setAttribute('data-current', newStatus);
     selectEl.disabled = true;
 
+    const reasonEl = document.getElementById(`ms-status-reason-${id}`);
+    if (reasonEl) {
+      reasonEl.textContent = (newStatus === 'Others' && reason) ? `“${reason}”` : '';
+      reasonEl.title = (newStatus === 'Others' && reason) ? reason : '';
+    }
+
     try {
-      await Bookings.updateStatus(id, newStatus);
+      await Bookings.updateStatus(id, newStatus, reason);
       try {
         await ActivityLog.write({
           bookingId: id,
           action: 'STATUS_CHANGED',
-          details: { from: prevStatus, to: newStatus }
+          details: { from: prevStatus, to: newStatus, ...(reason ? { reason } : {}) }
         });
       } catch (_) {}
-      selectEl.className = `status-select status-select-${newStatus.toLowerCase()}`;
       showToast(`Status updated to ${newStatus}.`, 'success');
     } catch (err) {
       console.error('Failed to update status:', err);
       selectEl.value = prevStatus;
-      selectEl.className = `status-select status-select-${prevStatus.toLowerCase()}`;
+      selectEl.className = `status-select status-select-${prevSlug}`;
+      selectEl.setAttribute('data-current', prevStatus);
+      if (rowEl) {
+        rowEl.classList.remove(`row-status-${newSlug}`);
+        rowEl.classList.add(`row-status-${prevSlug}`);
+      }
+      if (reasonEl) {
+        reasonEl.textContent = '';
+      }
       showToast('Failed to update status: ' + (err.message || ''), 'error');
     } finally {
       selectEl.disabled = false;
     }
+  }
+
+  // Inline status change handler with reason prompt modal for "Others"
+  window._updateScheduleStatus = async (selectEl, id, prevStatus) => {
+    const newStatus = selectEl.value;
+    if (newStatus === prevStatus) return;
+
+    if (newStatus === 'Others') {
+      showModal({
+        title: 'Specify Reason for "Others"',
+        body: `
+          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:12px;">
+            Please define the reason for setting this schedule to <strong>Others</strong> (e.g. Customer not answering call, rescheduled, out of country, etc.):
+          </p>
+          <div class="form-group" style="margin-bottom:0">
+            <textarea id="ms-modal-status-reason" class="form-control" rows="3" placeholder="Enter reason here…" autofocus></textarea>
+            <div id="ms-modal-status-reason-err" class="form-error" style="display:none;">Please enter a reason.</div>
+          </div>
+        `,
+        confirmText: 'Save Status',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          const reasonInput = document.getElementById('ms-modal-status-reason');
+          const reason = (reasonInput?.value || '').trim();
+          if (!reason) {
+            const errEl = document.getElementById('ms-modal-status-reason-err');
+            if (errEl) errEl.style.display = 'block';
+            if (reasonInput) reasonInput.focus();
+            throw new Error('Reason required');
+          }
+          await applyMyScheduleStatusChange(selectEl, id, prevStatus, newStatus, reason);
+        },
+        onCancel: () => {
+          selectEl.value = prevStatus;
+          selectEl.className = `status-select status-select-${prevStatus.toLowerCase().replace(/\s+/g, '-')}`;
+        }
+      });
+      return;
+    }
+
+    await applyMyScheduleStatusChange(selectEl, id, prevStatus, newStatus, '');
   };
 
   // Action handlers for edit/delete

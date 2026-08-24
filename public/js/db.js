@@ -299,7 +299,8 @@ export const Bookings = {
       completionNotes: '',
       bookedById:      currentUid(),
       bookedByName:    data.bookedByName || '',
-      status:          'Pending',
+      status:          data.status || 'Pending',
+      statusReason:    data.statusReason || '',
       createdAt:       serverTs(),
       updatedAt:       serverTs(),
       updatedById:     currentUid(),
@@ -313,23 +314,29 @@ export const Bookings = {
     await db.collection('bookings').doc(id).update(updates);
   },
 
-  /** Salesperson: update only completion notes and status */
-  async updateSalesperson(id, { completionNotes, status }) {
-    await db.collection('bookings').doc(id).update({
-      completionNotes,
+  /** Salesperson: update completion notes, status, and statusReason */
+  async updateSalesperson(id, { completionNotes, status, statusReason }) {
+    const data = {
+      completionNotes: completionNotes || '',
       status,
       updatedAt:   serverTs(),
       updatedById: currentUid(),
-    });
+    };
+    if (statusReason !== undefined) {
+      data.statusReason = statusReason;
+    }
+    await db.collection('bookings').doc(id).update(data);
   },
 
-  /** Quick status update with validation */
-  async updateStatus(id, newStatus) {
-    await db.collection('bookings').doc(id).update({
+  /** Quick status update with optional status reason */
+  async updateStatus(id, newStatus, statusReason = '') {
+    const data = {
       status:      newStatus,
+      statusReason: newStatus === 'Others' ? (statusReason || '') : '',
       updatedAt:   serverTs(),
       updatedById: currentUid(),
-    });
+    };
+    await db.collection('bookings').doc(id).update(data);
   },
 
   /** Delete a schedule record */

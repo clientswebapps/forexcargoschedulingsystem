@@ -140,7 +140,7 @@ export async function renderPrint(container, appState, queryString = '') {
                 </td>
                 ${showSalespersonColumn ? `<td class="text-sm">${escapeHtml(b.salespersonName || '—')}</td>` : ''}
                 <td class="text-sm text-secondary">${escapeHtml(b.bookedByName || '—')}</td>
-                <td class="col-remarks"></td>
+                <td class="col-remarks">${b.status === 'Others' && b.statusReason ? `<span class="badge badge-others">Others</span><div class="text-xs text-secondary mt-1" style="font-style:italic">“${escapeHtml(b.statusReason)}”</div>` : ''}</td>
               </tr>`).join('')}
           </tbody>
         </table>

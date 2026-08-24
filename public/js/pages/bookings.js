@@ -80,7 +80,7 @@ export async function renderBookings(container, appState) {
           <div class="filter-label">Status</div>
           <select id="f-status" class="filter-control">
             <option value="">All</option>
-            <option>Pending</option><option>Completed</option><option>Cancelled</option>
+            <option>Pending</option><option>Completed</option><option>Others</option><option>Cancelled</option>
           </select>
         </div>
 
@@ -182,6 +182,7 @@ export async function renderBookings(container, appState) {
           const notes = (b.notes || '').toLowerCase();
           const sales = (b.salespersonName || '').toLowerCase();
           const bookedBy = (b.bookedByName || '').toLowerCase();
+          const reason = (b.statusReason || '').toLowerCase();
 
           return name.includes(rawQ) ||
                  phone.includes(rawQ) ||
@@ -192,7 +193,8 @@ export async function renderBookings(container, appState) {
                  details.includes(rawQ) ||
                  notes.includes(rawQ) ||
                  sales.includes(rawQ) ||
-                 bookedBy.includes(rawQ);
+                 bookedBy.includes(rawQ) ||
+                 reason.includes(rawQ);
         })
       : allBookings;
 
@@ -223,8 +225,10 @@ export async function renderBookings(container, appState) {
             <th>Service</th><th>Salesperson</th><th>Created By</th><th>Status</th><th style="text-align:right">Actions</th>
           </tr></thead>
           <tbody>
-            ${list.map(b => `
-              <tr class="clickable" onclick="window._navigate && window._navigate('/schedules/view/${b.id}')">
+            ${list.map(b => {
+              const statusSlug = (b.status || 'pending').toLowerCase().replace(/\s+/g, '-');
+              return `
+              <tr class="clickable row-status-${statusSlug}" data-id="${b.id}" onclick="window._navigate && window._navigate('/schedules/view/${b.id}')">
                 <td class="text-sm" style="white-space:nowrap">${formatDate(b.scheduledDate)}</td>
                 <td class="text-sm" style="white-space:nowrap">${escapeHtml(b.scheduledTime || '')} <span class="badge badge-gray text-xs" style="margin-left:2px;">${escapeHtml(b.scheduledPeriod || 'Anytime')}</span></td>
                 <td><div class="font-medium">${escapeHtml(b.snapshot_name)}</div></td>
@@ -233,14 +237,16 @@ export async function renderBookings(container, appState) {
                 <td class="text-sm">${escapeHtml(b.salespersonName || '—')}</td>
                 <td class="text-sm text-secondary">${escapeHtml(b.bookedByName || '—')}</td>
                 <td onclick="event.stopPropagation()">
-                  <select class="status-select status-select-${(b.status||'pending').toLowerCase()}"
+                  <select class="status-select status-select-${statusSlug}"
                     data-id="${b.id}"
                     data-current="${b.status}"
-                    onchange="window._updateScheduleStatus(this, '${b.id}', '${b.status}')">
+                    onchange="window._updateScheduleStatus(this, '${b.id}', this.getAttribute('data-current') || '${b.status}')">
                     <option value="Pending" ${b.status === 'Pending' ? 'selected' : ''}>Pending</option>
                     <option value="Completed" ${b.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                    <option value="Others" ${b.status === 'Others' ? 'selected' : ''}>Others</option>
                     <option value="Cancelled" ${b.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
                   </select>
+                  <div class="status-reason-note" id="status-reason-${b.id}" title="${escapeHtml(b.statusReason || '')}">${b.status === 'Others' && b.statusReason ? `“${escapeHtml(b.statusReason)}”` : ''}</div>
                 </td>
                 <td style="text-align:right" onclick="event.stopPropagation()">
                   <div class="row-actions-stacked">
@@ -248,37 +254,97 @@ export async function renderBookings(container, appState) {
                     ${canDelete ? `<button class="btn btn-danger-outline btn-sm" onclick="window._deleteSchedule(this, '${b.id}', '${escapeHtml(b.snapshot_name)}')">Delete</button>` : ''}
                   </div>
                 </td>
-              </tr>`).join('')}
+              </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>`;
   }
 
-  // Fast inline status change handler with race condition prevention
-  window._updateScheduleStatus = async (selectEl, id, prevStatus) => {
-    const newStatus = selectEl.value;
-    if (newStatus === prevStatus) return;
+  async function applyStatusChange(selectEl, id, prevStatus, newStatus, reason = '') {
+    const newSlug = newStatus.toLowerCase().replace(/\s+/g, '-');
+    const prevSlug = prevStatus.toLowerCase().replace(/\s+/g, '-');
 
-    // Immediately disable to prevent race conditions / duplicate clicks
+    const rowEl = selectEl.closest('tr');
+    if (rowEl) {
+      rowEl.classList.remove(`row-status-${prevSlug}`);
+      rowEl.classList.add(`row-status-${newSlug}`);
+    }
+    selectEl.className = `status-select status-select-${newSlug}`;
+    selectEl.setAttribute('data-current', newStatus);
     selectEl.disabled = true;
 
+    const reasonEl = document.getElementById(`status-reason-${id}`);
+    if (reasonEl) {
+      reasonEl.textContent = (newStatus === 'Others' && reason) ? `“${reason}”` : '';
+      reasonEl.title = (newStatus === 'Others' && reason) ? reason : '';
+    }
+
     try {
-      await Bookings.updateStatus(id, newStatus);
+      await Bookings.updateStatus(id, newStatus, reason);
       await ActivityLog.write({
         bookingId: id,
         action: 'STATUS_CHANGED',
-        details: { from: prevStatus, to: newStatus }
+        details: { from: prevStatus, to: newStatus, ...(reason ? { reason } : {}) }
       });
       showToast(`Status updated to ${newStatus}.`, 'success');
     } catch (err) {
       console.error('Failed to update status:', err);
-      // Revert UI on failure
       selectEl.value = prevStatus;
-      selectEl.className = `status-select status-select-${prevStatus.toLowerCase()}`;
+      selectEl.className = `status-select status-select-${prevSlug}`;
+      selectEl.setAttribute('data-current', prevStatus);
+      if (rowEl) {
+        rowEl.classList.remove(`row-status-${newSlug}`);
+        rowEl.classList.add(`row-status-${prevSlug}`);
+      }
+      if (reasonEl) {
+        reasonEl.textContent = '';
+      }
       showToast('Failed to update status: ' + (err.message || ''), 'error');
     } finally {
       selectEl.disabled = false;
     }
+  }
+
+  // Inline status change handler with reason prompt modal for "Others"
+  window._updateScheduleStatus = async (selectEl, id, prevStatus) => {
+    const newStatus = selectEl.value;
+    if (newStatus === prevStatus) return;
+
+    if (newStatus === 'Others') {
+      showModal({
+        title: 'Specify Reason for "Others"',
+        body: `
+          <p style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:12px;">
+            Please define the reason for setting this schedule to <strong>Others</strong> (e.g. Customer not answering call, rescheduled, out of country, etc.):
+          </p>
+          <div class="form-group" style="margin-bottom:0">
+            <textarea id="modal-status-reason" class="form-control" rows="3" placeholder="Enter reason here…" autofocus></textarea>
+            <div id="modal-status-reason-err" class="form-error" style="display:none;">Please enter a reason.</div>
+          </div>
+        `,
+        confirmText: 'Save Status',
+        cancelText: 'Cancel',
+        onConfirm: async () => {
+          const reasonInput = document.getElementById('modal-status-reason');
+          const reason = (reasonInput?.value || '').trim();
+          if (!reason) {
+            const errEl = document.getElementById('modal-status-reason-err');
+            if (errEl) errEl.style.display = 'block';
+            if (reasonInput) reasonInput.focus();
+            throw new Error('Reason required');
+          }
+          await applyStatusChange(selectEl, id, prevStatus, newStatus, reason);
+        },
+        onCancel: () => {
+          selectEl.value = prevStatus;
+          selectEl.className = `status-select status-select-${prevStatus.toLowerCase().replace(/\s+/g, '-')}`;
+        }
+      });
+      return;
+    }
+
+    await applyStatusChange(selectEl, id, prevStatus, newStatus, '');
   };
 
   // Delete schedule handler with styled confirmation modal

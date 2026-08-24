@@ -187,7 +187,7 @@ export async function renderBookingDetail(container, appState, bookingId) {
                 <div class="card-title">Completion Notes</div>
               </div>
               <div class="card-body">
-                ${isSales && b.status === 'Pending' ? `
+                ${isSales && (b.status === 'Pending' || b.status === 'Others') ? `
                   <div class="form-group">
                     <textarea id="completion-notes-input" class="form-control" rows="4"
                       placeholder="Enter completion notes here…">${escapeHtml(b.completionNotes || '')}</textarea>
@@ -213,7 +213,13 @@ export async function renderBookingDetail(container, appState, bookingId) {
               <div class="card-body">
                 <div class="detail-item" style="margin-bottom:14px;">
                   <div class="detail-label">Status</div>
-                  <div class="detail-value" style="margin-top:4px;">${statusBadge(b.status)}</div>
+                  <div class="detail-value" style="margin-top:4px;">
+                    ${statusBadge(b.status)}
+                    ${b.status === 'Others' && b.statusReason ? `
+                      <div class="status-reason-note" style="margin-top:5px;font-size:0.8rem;">
+                        <strong>Reason:</strong> ${escapeHtml(b.statusReason)}
+                      </div>` : ''}
+                  </div>
                 </div>
                 <div class="detail-item" style="margin-bottom:14px;">
                   <div class="detail-label">Assigned Salesperson</div>
@@ -271,10 +277,10 @@ export async function renderBookingDetail(container, appState, bookingId) {
       }
 
       // Salesperson completion actions
-      if (isSales && b.status === 'Pending') {
+      if (isSales && (b.status === 'Pending' || b.status === 'Others')) {
         document.getElementById('save-notes-btn')?.addEventListener('click', async () => {
           const notes = document.getElementById('completion-notes-input').value.trim();
-          await Bookings.updateSalesperson(b.id, { completionNotes: notes, status: 'Pending' });
+          await Bookings.updateSalesperson(b.id, { completionNotes: notes, status: b.status || 'Pending', statusReason: b.statusReason || '' });
           showToast('Notes saved.', 'success');
         });
 
@@ -282,7 +288,7 @@ export async function renderBookingDetail(container, appState, bookingId) {
           if (!confirm('Mark this schedule as Completed?')) return;
           const notes = document.getElementById('completion-notes-input').value.trim();
           await Bookings.updateSalesperson(b.id, { completionNotes: notes, status: 'Completed' });
-          await ActivityLog.write({ bookingId: b.id, action: 'STATUS_CHANGED', details: { from: 'Pending', to: 'Completed' } });
+          await ActivityLog.write({ bookingId: b.id, action: 'STATUS_CHANGED', details: { from: b.status || 'Pending', to: 'Completed' } });
           showToast('Schedule marked as completed.', 'success');
           window._navigate && window._navigate('/my-schedule');
         });
