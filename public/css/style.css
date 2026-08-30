@@ -1868,3 +1868,115 @@ tbody tr.row-status-pending:hover {
   }
 }
 
+/* ── Pagination Component ────────────────────────────────── */
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--divider);
+  background: var(--lighter-gray);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.pagination-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.pagination-info {
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.pagination-size-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.825rem;
+  color: var(--text-secondary);
+}
+.pagination-select-control {
+  background: var(--white);
+  border: 1px solid var(--border-gray);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 0.825rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.pagination-select-control:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px var(--light-blue-100);
+}
+.pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+}
+.pagination-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-gray);
+  background: var(--white);
+  color: var(--text-primary);
+  font-size: 0.825rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  user-select: none;
+}
+.pagination-btn:hover:not(:disabled) {
+  background: var(--light-blue-50);
+  border-color: var(--light-blue);
+  color: var(--navy);
+}
+.pagination-btn.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: var(--white);
+  font-weight: 600;
+  cursor: default;
+}
+.pagination-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--light-gray);
+  border-color: var(--border-gray);
+}
+.pagination-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 32px;
+  font-size: 0.85rem;
+  color: var(--text-hint);
+  user-select: none;
+}
+@media (max-width: 600px) {
+  .pagination-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .pagination-left {
+    justify-content: space-between;
+  }
+  .pagination-nav {
+    justify-content: center;
+  }
+}
+

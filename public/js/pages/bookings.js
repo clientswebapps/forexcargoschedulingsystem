@@ -95,6 +95,7 @@ export async function renderBookings(container, appState) {
         <div class="card-title">Schedules</div>
       </div>
       <div id="bookings-table">${loadingHTML()}</div>
+      <div id="bookings-pagination"></div>
     </div>`;
 
   // Populate salesperson dropdown
@@ -107,7 +108,14 @@ export async function renderBookings(container, appState) {
 
   let allBookings = [];
   let filtered    = [];
+  let currentPage = 1;
+  let pageSize    = 10;
   let unsubscribe = null;
+
+  function isPaginatedRangeSelected() {
+    const rangeType = document.getElementById('f-date-range')?.value || 'today';
+    return rangeType === 'month' || rangeType === 'all' || rangeType === 'custom';
+  }
 
   function load() {
     if (unsubscribe) {
@@ -198,17 +206,42 @@ export async function renderBookings(container, appState) {
         })
       : allBookings;
 
-    renderTable(filtered);
+    renderView();
   }
 
-  function renderTable(list) {
+  function renderView() {
+    const isPaginated = isPaginatedRangeSelected();
     const countEl = document.getElementById('booking-count');
+    const totalItems = filtered.length;
+
     if (countEl) {
       countEl.innerHTML = `
         <div class="card-title">Schedules</div>
-        <div class="text-sm text-secondary">${list.length} record${list.length !== 1 ? 's' : ''}</div>`;
+        <div class="text-sm text-secondary">${totalItems} record${totalItems !== 1 ? 's' : ''}${isPaginated && totalItems > 0 ? ` (Paginated: ${pageSize} per page)` : ''}</div>`;
     }
 
+    if (!isPaginated) {
+      // Non-paginated view (Today, Yesterday, Tomorrow, This Week, Last Week)
+      renderTable(filtered);
+      const pagEl = document.getElementById('bookings-pagination');
+      if (pagEl) pagEl.innerHTML = '';
+      return;
+    }
+
+    // Paginated view (This Month, All Time, Custom)
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const pageItems = filtered.slice(startIdx, endIdx);
+
+    renderTable(pageItems);
+    renderPagination(totalItems, totalPages);
+  }
+
+  function renderTable(list) {
     const el = document.getElementById('bookings-table');
     if (!el) return;
     if (!list.length) {
@@ -259,6 +292,103 @@ export async function renderBookings(container, appState) {
           </tbody>
         </table>
       </div>`;
+  }
+
+  function renderPagination(totalItems, totalPages) {
+    const pagEl = document.getElementById('bookings-pagination');
+    if (!pagEl) return;
+    if (!totalItems) {
+      pagEl.innerHTML = '';
+      return;
+    }
+
+    const startItem = (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
+
+    // Build numbered page buttons
+    let pageBtns = '';
+    const maxVisibleBtns = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisibleBtns / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisibleBtns - 1);
+    if (endPage - startPage + 1 < maxVisibleBtns) {
+      startPage = Math.max(1, endPage - maxVisibleBtns + 1);
+    }
+
+    if (startPage > 1) {
+      pageBtns += `<button class="pagination-btn" data-page="1">1</button>`;
+      if (startPage > 2) {
+        pageBtns += `<span class="pagination-ellipsis">…</span>`;
+      }
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      pageBtns += `<button class="pagination-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pageBtns += `<span class="pagination-ellipsis">…</span>`;
+      }
+      pageBtns += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+
+    pagEl.innerHTML = `
+      <div class="pagination-container">
+        <div class="pagination-left">
+          <div class="pagination-size-select">
+            <span>Show</span>
+            <select id="sched-page-size" class="pagination-select-control" aria-label="Items per page">
+              <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+              <option value="20" ${pageSize === 20 ? 'selected' : ''}>20</option>
+              <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+            <span>per page</span>
+          </div>
+          <div class="pagination-info">
+            Showing <strong>${startItem}–${endItem}</strong> of <strong>${totalItems}</strong> schedules
+          </div>
+        </div>
+        <nav class="pagination-nav" aria-label="Schedule list pagination">
+          <button class="pagination-btn" id="sched-first-page" ${currentPage === 1 ? 'disabled' : ''} title="First Page">«</button>
+          <button class="pagination-btn" id="sched-prev-page" ${currentPage === 1 ? 'disabled' : ''} title="Previous Page">‹</button>
+          ${pageBtns}
+          <button class="pagination-btn" id="sched-next-page" ${currentPage === totalPages ? 'disabled' : ''} title="Next Page">›</button>
+          <button class="pagination-btn" id="sched-last-page" ${currentPage === totalPages ? 'disabled' : ''} title="Last Page">»</button>
+        </nav>
+      </div>
+    `;
+
+    // Page size change handler
+    pagEl.querySelector('#sched-page-size')?.addEventListener('change', (e) => {
+      pageSize = Number(e.target.value);
+      currentPage = 1;
+      renderView();
+    });
+
+    // Navigation buttons
+    pagEl.querySelector('#sched-first-page')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage = 1; renderView(); }
+    });
+    pagEl.querySelector('#sched-prev-page')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; renderView(); }
+    });
+    pagEl.querySelector('#sched-next-page')?.addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage++; renderView(); }
+    });
+    pagEl.querySelector('#sched-last-page')?.addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage = totalPages; renderView(); }
+    });
+
+    // Numbered page clicks
+    pagEl.querySelectorAll('.pagination-btn[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = Number(btn.getAttribute('data-page'));
+        if (p && p !== currentPage) {
+          currentPage = p;
+          renderView();
+        }
+      });
+    });
   }
 
   async function applyStatusChange(selectEl, id, prevStatus, newStatus, reason = '') {
@@ -381,10 +511,14 @@ export async function renderBookings(container, appState) {
 
   // Event bindings
   const filterIds = ['f-status','f-salesperson','f-date-from','f-date-to','f-period'];
-  filterIds.forEach(id => document.getElementById(id)?.addEventListener('change', load));
+  filterIds.forEach(id => document.getElementById(id)?.addEventListener('change', () => {
+    currentPage = 1;
+    load();
+  }));
   
   let prevHasSearch = false;
   const onSearchInput = () => {
+    currentPage = 1;
     const q = (document.getElementById('f-search')?.value || '').trim();
     const hasSearch = q.length > 0;
     if (hasSearch !== prevHasSearch) {
@@ -398,6 +532,7 @@ export async function renderBookings(container, appState) {
 
   // Date Range dropdown change
   document.getElementById('f-date-range')?.addEventListener('change', (e) => {
+    currentPage = 1;
     const isCustom = e.target.value === 'custom';
     const fromGroup = document.getElementById('f-custom-from-group');
     const toGroup = document.getElementById('f-custom-to-group');
@@ -407,6 +542,7 @@ export async function renderBookings(container, appState) {
   });
 
   document.getElementById('clear-filters-btn')?.addEventListener('click', () => {
+    currentPage = 1;
     document.getElementById('f-search').value = '';
     document.getElementById('f-date-range').value = 'today';
     document.getElementById('f-date-from').value = '';
@@ -469,3 +605,4 @@ export async function renderBookings(container, appState) {
     }
   };
 }
+

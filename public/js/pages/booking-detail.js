@@ -119,7 +119,13 @@ export async function renderBookingDetail(container, appState, bookingId) {
               <div class="breadcrumb-sep">›</div>
               <div class="breadcrumb-item active">Schedule Detail</div>
             </div>
-            <h1 class="page-title">${escapeHtml(b.snapshot_name)}</h1>
+            <h1 class="page-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span>${escapeHtml(b.snapshot_name)}</span>
+              <button id="copy-schedule-id-btn" class="btn btn-secondary btn-sm" title="Click to copy Schedule ID (${escapeHtml(b.id)})" style="padding:3px 10px;font-size:0.75rem;font-family:monospace;height:26px;display:inline-flex;align-items:center;gap:5px;background:var(--light-blue-50);color:var(--navy);border-color:var(--light-blue-100);cursor:pointer;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                ID: ${escapeHtml(b.id.slice(0, 8))}…
+              </button>
+            </h1>
             <div class="page-subtitle">${serviceBadge(b.serviceType)} &nbsp; ${statusBadge(b.status)}</div>
           </div>
           <div class="page-actions">
@@ -267,6 +273,12 @@ export async function renderBookingDetail(container, appState, bookingId) {
 
           </div>
         </div>`;
+
+      // Copy Schedule ID button
+      document.getElementById('copy-schedule-id-btn')?.addEventListener('click', () => {
+        navigator.clipboard.writeText(b.id);
+        showToast('Schedule ID copied to clipboard!', 'success');
+      });
 
       // Edit button opens modal
       const editBtn = document.getElementById('edit-schedule-btn');

@@ -21,8 +21,16 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
   container.innerHTML = `
     <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <div class="modal modal-xl">
-        <div class="modal-header">
-          <h2 class="modal-title" id="modal-title">${isEdit ? 'Edit Schedule' : 'Create Schedule'}</h2>
+        <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <h2 class="modal-title" id="modal-title" style="margin:0;">${isEdit ? 'Edit Schedule' : 'Create Schedule'}</h2>
+            ${isEdit ? `
+              <button id="modal-copy-id-btn" class="btn btn-secondary btn-sm" title="Click to copy Schedule ID (${escapeHtml(bookingId)})" style="padding:2px 8px;font-size:0.72rem;font-family:monospace;height:24px;display:inline-flex;align-items:center;gap:4px;background:var(--light-blue-50);color:var(--navy);border-color:var(--light-blue-100);cursor:pointer;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                ID: ${escapeHtml(bookingId.slice(0, 8))}…
+              </button>
+            ` : ''}
+          </div>
           <button class="modal-close" id="modal-close-btn" aria-label="Close dialog">✕</button>
         </div>
         <div class="modal-body">${loadingHTML('Loading form…')}</div>
@@ -35,6 +43,13 @@ export async function openScheduleModal(appState, bookingId = null, onSaved = nu
     setTimeout(() => { container.innerHTML = ''; }, 300);
   };
   document.getElementById('modal-close-btn').addEventListener('click', closeHandler);
+
+  if (isEdit) {
+    document.getElementById('modal-copy-id-btn')?.addEventListener('click', () => {
+      navigator.clipboard.writeText(bookingId);
+      showToast('Schedule ID copied to clipboard!', 'success');
+    });
+  }
 
   // Animate in
   requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('modal-visible')));

@@ -30,6 +30,12 @@ export async function renderActivityLog(container, appState) {
             <option value="STATUS_CHANGED">Status Changed</option>
             <option value="SALESPERSON_REASSIGNED">Salesperson Reassigned</option>
             <option value="SCHEDULES_PRINTED">Schedules Printed</option>
+            <option value="SCHEDULE_EXPORTED">Schedules Exported</option>
+            <option value="CUSTOMER_CREATED">Customer Created</option>
+            <option value="CUSTOMER_UPDATED">Customer Updated</option>
+            <option value="CUSTOMER_DELETED">Customer Deleted</option>
+            <option value="CUSTOMER_EXPORTED">Customer Exported</option>
+            <option value="USER_LOGIN">User Login</option>
           </select>
         </div>
         <div class="filter-group">
@@ -47,11 +53,15 @@ export async function renderActivityLog(container, appState) {
         <div class="card-title">Activity History</div>
       </div>
       <div id="al-content">${loadingHTML()}</div>
+      <div id="al-pagination"></div>
     </div>`;
 
   const isSuper = appState.user.role === 'super_admin';
   let hiddenUids = new Set();
   let allLogs = [];
+  let filteredLogs = [];
+  let currentPage = 1;
+  let pageSize = 10;
   let unsubscribe = null;
 
   async function load() {
@@ -102,7 +112,7 @@ export async function renderActivityLog(container, appState) {
     const search = (document.getElementById('al-search')?.value || '').toLowerCase();
     const action = document.getElementById('al-action')?.value;
 
-    const filtered = allLogs.filter(log => {
+    filteredLogs = allLogs.filter(log => {
       if (action && log.action !== action) return false;
       if (search && !(
         (log.actorName||'').toLowerCase().includes(search) ||
@@ -112,17 +122,32 @@ export async function renderActivityLog(container, appState) {
       return true;
     });
 
-    renderTable(filtered);
+    renderView();
   }
 
-  function renderTable(list) {
+  function renderView() {
+    const totalItems = filteredLogs.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
     const countEl = document.getElementById('al-count');
     if (countEl) {
       countEl.innerHTML = `
         <div class="card-title">Activity History</div>
-        <div class="text-sm text-secondary">${list.length} entr${list.length !== 1 ? 'ies' : 'y'}</div>`;
+        <div class="text-sm text-secondary">${totalItems} entr${totalItems !== 1 ? 'ies' : 'y'}${totalItems > 0 ? ` (Paginated: ${pageSize} per page)` : ''}</div>`;
     }
 
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const pageItems = filteredLogs.slice(startIdx, endIdx);
+
+    renderTable(pageItems);
+    renderPagination(totalItems, totalPages);
+  }
+
+  function renderTable(list) {
     const el = document.getElementById('al-content');
     if (!el) return;
     if (!list.length) {
@@ -155,11 +180,118 @@ export async function renderActivityLog(container, appState) {
       </div>`;
   }
 
+  function renderPagination(totalItems, totalPages) {
+    const pagEl = document.getElementById('al-pagination');
+    if (!pagEl) return;
+    if (!totalItems) {
+      pagEl.innerHTML = '';
+      return;
+    }
+
+    const startItem = (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
+
+    // Build numbered page buttons
+    let pageBtns = '';
+    const maxVisibleBtns = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisibleBtns / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisibleBtns - 1);
+    if (endPage - startPage + 1 < maxVisibleBtns) {
+      startPage = Math.max(1, endPage - maxVisibleBtns + 1);
+    }
+
+    if (startPage > 1) {
+      pageBtns += `<button class="pagination-btn" data-page="1">1</button>`;
+      if (startPage > 2) {
+        pageBtns += `<span class="pagination-ellipsis">…</span>`;
+      }
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      pageBtns += `<button class="pagination-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pageBtns += `<span class="pagination-ellipsis">…</span>`;
+      }
+      pageBtns += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+
+    pagEl.innerHTML = `
+      <div class="pagination-container">
+        <div class="pagination-left">
+          <div class="pagination-size-select">
+            <span>Show</span>
+            <select id="al-page-size" class="pagination-select-control" aria-label="Entries per page">
+              <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+              <option value="20" ${pageSize === 20 ? 'selected' : ''}>20</option>
+              <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+            <span>per page</span>
+          </div>
+          <div class="pagination-info">
+            Showing <strong>${startItem}–${endItem}</strong> of <strong>${totalItems}</strong> entries
+          </div>
+        </div>
+        <nav class="pagination-nav" aria-label="Activity log pagination">
+          <button class="pagination-btn" id="al-first-page" ${currentPage === 1 ? 'disabled' : ''} title="First Page">«</button>
+          <button class="pagination-btn" id="al-prev-page" ${currentPage === 1 ? 'disabled' : ''} title="Previous Page">‹</button>
+          ${pageBtns}
+          <button class="pagination-btn" id="al-next-page" ${currentPage === totalPages ? 'disabled' : ''} title="Next Page">›</button>
+          <button class="pagination-btn" id="al-last-page" ${currentPage === totalPages ? 'disabled' : ''} title="Last Page">»</button>
+        </nav>
+      </div>
+    `;
+
+    // Page size change handler
+    pagEl.querySelector('#al-page-size')?.addEventListener('change', (e) => {
+      pageSize = Number(e.target.value);
+      currentPage = 1;
+      renderView();
+    });
+
+    // Navigation buttons
+    pagEl.querySelector('#al-first-page')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage = 1; renderView(); }
+    });
+    pagEl.querySelector('#al-prev-page')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; renderView(); }
+    });
+    pagEl.querySelector('#al-next-page')?.addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage++; renderView(); }
+    });
+    pagEl.querySelector('#al-last-page')?.addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage = totalPages; renderView(); }
+    });
+
+    // Numbered buttons
+    pagEl.querySelectorAll('.pagination-btn[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = Number(btn.getAttribute('data-page'));
+        if (p && p !== currentPage) {
+          currentPage = p;
+          renderView();
+        }
+      });
+    });
+  }
+
   // Events
-  document.getElementById('al-search')?.addEventListener('input', debounce(applyFilter, 250));
-  document.getElementById('al-action')?.addEventListener('change', applyFilter);
-  document.getElementById('al-booking-id')?.addEventListener('change', load);
+  document.getElementById('al-search')?.addEventListener('input', debounce(() => {
+    currentPage = 1;
+    applyFilter();
+  }, 250));
+  document.getElementById('al-action')?.addEventListener('change', () => {
+    currentPage = 1;
+    applyFilter();
+  });
+  document.getElementById('al-booking-id')?.addEventListener('change', () => {
+    currentPage = 1;
+    load();
+  });
   document.getElementById('al-clear-btn')?.addEventListener('click', () => {
+    currentPage = 1;
     document.getElementById('al-search').value    = '';
     document.getElementById('al-action').value    = '';
     document.getElementById('al-booking-id').value = '';
@@ -184,6 +316,12 @@ function formatAction(action) {
     STATUS_CHANGED:        'Status Changed',
     SALESPERSON_REASSIGNED:'Reassigned',
     SCHEDULES_PRINTED:     'Printed Schedules',
+    SCHEDULE_EXPORTED:     'Exported CSV',
+    CUSTOMER_CREATED:      'Customer Created',
+    CUSTOMER_UPDATED:      'Customer Updated',
+    CUSTOMER_DELETED:      'Customer Deleted',
+    CUSTOMER_EXPORTED:     'Customer Exported',
+    USER_LOGIN:            'Logged In',
   };
   return map[action] || action;
 }
@@ -196,6 +334,12 @@ function actionBadgeClass(action) {
     STATUS_CHANGED:        'badge-warning',
     SALESPERSON_REASSIGNED:'badge-navy',
     SCHEDULES_PRINTED:     'badge-purple',
+    SCHEDULE_EXPORTED:     'badge-info',
+    CUSTOMER_CREATED:      'badge-green',
+    CUSTOMER_UPDATED:      'badge-info',
+    CUSTOMER_DELETED:      'badge-danger',
+    CUSTOMER_EXPORTED:     'badge-purple',
+    USER_LOGIN:            'badge-gray',
   };
   return map[action] || 'badge-gray';
 }
@@ -206,3 +350,4 @@ function formatDetails(details = {}) {
     .map(([k, v]) => `<span style="color:var(--text-secondary)">${escapeHtml(k)}:</span> ${escapeHtml(String(v))}`)
     .join('&nbsp; · &nbsp;');
 }
+

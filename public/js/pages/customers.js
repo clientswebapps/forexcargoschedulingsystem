@@ -2,21 +2,29 @@
  * customers.js — Customer Directory page
  */
 'use strict';
-import { Customers, ActivityLog } from '../db.js';
+import { Customers, Bookings, ActivityLog } from '../db.js';
 import { openScheduleModal } from './booking-form.js';
-import { showToast, showModal, loadingHTML, errorHTML, escapeHtml, debounce, initials, btnLoading } from '../utils.js';
+import { showToast, showModal, loadingHTML, errorHTML, escapeHtml, debounce, initials, btnLoading, exportCustomersToCSV } from '../utils.js';
 
 export async function renderCustomers(container, appState) {
   const role = appState.user.role;
+  const uid  = appState.uid;
+  const isSales = role === 'salesperson';
   const canDelete = role === 'admin' || role === 'super_admin';
+  const canExport = role === 'admin' || role === 'super_admin';
 
   container.innerHTML = `
     <div class="page-header">
       <div class="page-header-left">
-        <h1 class="page-title">Customer Directory</h1>
-        <div class="page-subtitle">Search and manage customer records</div>
+        <h1 class="page-title">${isSales ? 'My Customers' : 'Customer Directory'}</h1>
+        <div class="page-subtitle">${isSales ? 'Customers you created or have scheduled jobs with' : 'Search and manage customer records'}</div>
       </div>
       <div class="page-actions">
+        ${canExport ? `
+        <button class="btn btn-secondary" id="export-customers-csv-btn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export CSV
+        </button>` : ''}
         <button class="btn btn-primary" id="add-customer-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Customer
@@ -25,36 +33,151 @@ export async function renderCustomers(container, appState) {
     </div>
     <div class="card">
       <div class="card-header">
-        <div class="card-title">All Customers</div>
+        <div class="flex items-center gap-2">
+          <div class="card-title">${isSales ? 'My Customers' : 'All Customers'}</div>
+          <span class="badge" id="customer-count-badge" style="background:var(--light-blue-50);color:var(--navy);font-weight:600;font-size:0.75rem;padding:2px 8px;border-radius:var(--radius-full);">0</span>
+        </div>
         <div>
           <input type="text" id="customer-search" class="filter-control" placeholder="Search by name or phone…" style="width:240px;">
         </div>
       </div>
       <div id="customers-table">${loadingHTML()}</div>
+      <div id="customers-pagination"></div>
     </div>`;
 
+  let allRawCustomers = [];
+  let salespersonBookings = [];
   let allCustomers = [];
-  let unsubscribe = null;
+  let filteredCustomers = [];
+  let currentPage = 1;
+  let pageSize = 10;
+  let unsubscribeCustomers = null;
+  let unsubscribeBookings  = null;
+
+  function computeScopedCustomers() {
+    if (!isSales) {
+      allCustomers = allRawCustomers;
+      return;
+    }
+
+    const assignedCustomerIds = new Set();
+    const assignedPhones = new Set();
+
+    salespersonBookings.forEach(b => {
+      if (b.customerId) assignedCustomerIds.add(b.customerId);
+      if (b.snapshot_contactNumber) {
+        const clean = b.snapshot_contactNumber.replace(/\D/g, '');
+        if (clean) assignedPhones.add(clean);
+        if (clean.startsWith('973') && clean.length > 3) {
+          assignedPhones.add(clean.substring(3));
+        }
+      }
+    });
+
+    allCustomers = allRawCustomers.filter(c => {
+      if (c.createdBy === uid) return true;
+      if (assignedCustomerIds.has(c.id)) return true;
+      if (c.contactNumber) {
+        const clean = c.contactNumber.replace(/\D/g, '');
+        if (clean && (assignedPhones.has(clean) || (clean.startsWith('973') && clean.length > 3 && assignedPhones.has(clean.substring(3))))) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
 
   function load() {
-    if (unsubscribe) {
-      unsubscribe();
-      unsubscribe = null;
+    if (unsubscribeCustomers) {
+      unsubscribeCustomers();
+      unsubscribeCustomers = null;
     }
+    if (unsubscribeBookings) {
+      unsubscribeBookings();
+      unsubscribeBookings = null;
+    }
+
     const tableEl = document.getElementById('customers-table');
     if (tableEl && !allCustomers.length) {
       tableEl.innerHTML = loadingHTML();
     }
+
     try {
-      unsubscribe = Customers.onSnapshot((list) => {
-        allCustomers = list;
-        const q = (document.getElementById('customer-search')?.value || '').trim();
-        if (q) searchFn(q);
-        else renderTable(allCustomers);
+      unsubscribeCustomers = Customers.onSnapshot((list) => {
+        allRawCustomers = list;
+        computeScopedCustomers();
+        updateView();
       });
+
+      if (isSales && uid) {
+        unsubscribeBookings = Bookings.onMineSnapshot(uid, {}, (mineList) => {
+          salespersonBookings = mineList;
+          computeScopedCustomers();
+          updateView();
+        });
+      }
     } catch (err) {
       if (tableEl) tableEl.innerHTML = errorHTML('Failed to load customers.');
     }
+  }
+
+  function filterCustomers(list, q) {
+    if (!q) return list;
+    const rawQ = q.trim().toLowerCase();
+    const cleanQ = rawQ.replace(/[\s\-\+\(\)]/g, '');
+    const cleanDigitsOnly = rawQ.replace(/\D/g, '');
+    let searchLocal = cleanDigitsOnly;
+    if (cleanDigitsOnly.startsWith('973') && cleanDigitsOnly.length > 3) {
+      searchLocal = cleanDigitsOnly.substring(3);
+    }
+
+    return list.filter(c => {
+      const name = (c.name || '').toLowerCase();
+      const phone = (c.contactNumber || '').toLowerCase();
+      const cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
+      const custDigits = phone.replace(/\D/g, '');
+      let custLocal = custDigits;
+      if (custDigits.startsWith('973') && custDigits.length > 3) {
+        custLocal = custDigits.substring(3);
+      }
+      const address = (c.address || '').toLowerCase();
+
+      return name.includes(rawQ) ||
+             phone.includes(rawQ) ||
+             (cleanQ && cleanPhone.includes(cleanQ)) ||
+             (searchLocal && custLocal && (custLocal.includes(searchLocal) || searchLocal.includes(custLocal))) ||
+             address.includes(rawQ);
+    });
+  }
+
+  function updateView() {
+    const q = (document.getElementById('customer-search')?.value || '').trim();
+    filteredCustomers = filterCustomers(allCustomers, q);
+
+    // Update count badge
+    const badge = document.getElementById('customer-count-badge');
+    if (badge) {
+      if (q) {
+        badge.textContent = `${filteredCustomers.length} of ${allCustomers.length}`;
+        badge.title = `${filteredCustomers.length} filtered from ${allCustomers.length} total customers`;
+      } else {
+        badge.textContent = `${allCustomers.length}`;
+        badge.title = `${allCustomers.length} total customers`;
+      }
+    }
+
+    const totalItems = filteredCustomers.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    const startIdx = (currentPage - 1) * pageSize;
+    const endIdx = startIdx + pageSize;
+    const pageItems = filteredCustomers.slice(startIdx, endIdx);
+
+    renderTable(pageItems);
+    renderPagination(totalItems, totalPages);
   }
 
   function renderTable(list) {
@@ -108,39 +231,126 @@ export async function renderCustomers(container, appState) {
       </div>`;
   }
 
-  // Search with space-tolerant and digit-normalized phone matching
-  const searchFn = debounce(q => {
-    if (!q) { renderTable(allCustomers); return; }
-    const rawQ = q.trim().toLowerCase();
-    const cleanQ = rawQ.replace(/[\s\-\+\(\)]/g, '');
-    const cleanDigitsOnly = rawQ.replace(/\D/g, '');
-    let searchLocal = cleanDigitsOnly;
-    if (cleanDigitsOnly.startsWith('973') && cleanDigitsOnly.length > 3) {
-      searchLocal = cleanDigitsOnly.substring(3);
+  function renderPagination(totalItems, totalPages) {
+    const pagEl = document.getElementById('customers-pagination');
+    if (!pagEl) return;
+    if (!totalItems) {
+      pagEl.innerHTML = '';
+      return;
     }
 
-    renderTable(allCustomers.filter(c => {
-      const name = (c.name || '').toLowerCase();
-      const phone = (c.contactNumber || '').toLowerCase();
-      const cleanPhone = phone.replace(/[\s\-\+\(\)]/g, '');
-      const custDigits = phone.replace(/\D/g, '');
-      let custLocal = custDigits;
-      if (custDigits.startsWith('973') && custDigits.length > 3) {
-        custLocal = custDigits.substring(3);
-      }
-      const address = (c.address || '').toLowerCase();
+    const startItem = (currentPage - 1) * pageSize + 1;
+    const endItem = Math.min(currentPage * pageSize, totalItems);
 
-      return name.includes(rawQ) ||
-             phone.includes(rawQ) ||
-             (cleanQ && cleanPhone.includes(cleanQ)) ||
-             (searchLocal && custLocal && (custLocal.includes(searchLocal) || searchLocal.includes(custLocal))) ||
-             address.includes(rawQ);
-    }));
+    // Build numbered page buttons
+    let pageBtns = '';
+    const maxVisibleBtns = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisibleBtns / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisibleBtns - 1);
+    if (endPage - startPage + 1 < maxVisibleBtns) {
+      startPage = Math.max(1, endPage - maxVisibleBtns + 1);
+    }
+
+    if (startPage > 1) {
+      pageBtns += `<button class="pagination-btn" data-page="1">1</button>`;
+      if (startPage > 2) {
+        pageBtns += `<span class="pagination-ellipsis">…</span>`;
+      }
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+      pageBtns += `<button class="pagination-btn ${p === currentPage ? 'active' : ''}" data-page="${p}">${p}</button>`;
+    }
+
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        pageBtns += `<span class="pagination-ellipsis">…</span>`;
+      }
+      pageBtns += `<button class="pagination-btn" data-page="${totalPages}">${totalPages}</button>`;
+    }
+
+    pagEl.innerHTML = `
+      <div class="pagination-container">
+        <div class="pagination-left">
+          <div class="pagination-size-select">
+            <span>Show</span>
+            <select id="cust-page-size" class="pagination-select-control" aria-label="Items per page">
+              <option value="10" ${pageSize === 10 ? 'selected' : ''}>10</option>
+              <option value="20" ${pageSize === 20 ? 'selected' : ''}>20</option>
+              <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+            </select>
+            <span>per page</span>
+          </div>
+          <div class="pagination-info">
+            Showing <strong>${startItem}–${endItem}</strong> of <strong>${totalItems}</strong> customers
+          </div>
+        </div>
+        <nav class="pagination-nav" aria-label="Customer list pagination">
+          <button class="pagination-btn" id="cust-first-page" ${currentPage === 1 ? 'disabled' : ''} title="First Page">«</button>
+          <button class="pagination-btn" id="cust-prev-page" ${currentPage === 1 ? 'disabled' : ''} title="Previous Page">‹</button>
+          ${pageBtns}
+          <button class="pagination-btn" id="cust-next-page" ${currentPage === totalPages ? 'disabled' : ''} title="Next Page">›</button>
+          <button class="pagination-btn" id="cust-last-page" ${currentPage === totalPages ? 'disabled' : ''} title="Last Page">»</button>
+        </nav>
+      </div>
+    `;
+
+    // Page size change handler
+    pagEl.querySelector('#cust-page-size')?.addEventListener('change', (e) => {
+      pageSize = Number(e.target.value);
+      currentPage = 1;
+      updateView();
+    });
+
+    // Navigation buttons
+    pagEl.querySelector('#cust-first-page')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage = 1; updateView(); }
+    });
+    pagEl.querySelector('#cust-prev-page')?.addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; updateView(); }
+    });
+    pagEl.querySelector('#cust-next-page')?.addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage++; updateView(); }
+    });
+    pagEl.querySelector('#cust-last-page')?.addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage = totalPages; updateView(); }
+    });
+
+    // Numbered buttons
+    pagEl.querySelectorAll('.pagination-btn[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = Number(btn.getAttribute('data-page'));
+        if (p && p !== currentPage) {
+          currentPage = p;
+          updateView();
+        }
+      });
+    });
+  }
+
+  // Search with space-tolerant and digit-normalized phone matching
+  const searchFn = debounce(() => {
+    currentPage = 1;
+    updateView();
   }, 250);
-  document.getElementById('customer-search')?.addEventListener('input', e => searchFn(e.target.value.trim()));
+  document.getElementById('customer-search')?.addEventListener('input', searchFn);
 
   // Add customer button
   document.getElementById('add-customer-btn')?.addEventListener('click', () => showCustomerForm(null));
+
+  // Export CSV button (Admin / Super Admin only)
+  if (canExport) {
+    document.getElementById('export-customers-csv-btn')?.addEventListener('click', async () => {
+      const listToExport = filteredCustomers.length ? filteredCustomers : allCustomers;
+      exportCustomersToCSV(listToExport, 'forex_cargo_customers');
+      try {
+        await ActivityLog.write({
+          action: 'CUSTOMER_EXPORTED',
+          details: { count: listToExport.length }
+        });
+      } catch (_) {}
+    });
+  }
 
   window._editCustomer = (id) => {
     const c = allCustomers.find(x => x.id === id);
@@ -234,9 +444,15 @@ export async function renderCustomers(container, appState) {
   load();
 
   return () => {
-    if (unsubscribe) {
-      unsubscribe();
-      unsubscribe = null;
+    if (unsubscribeCustomers) {
+      unsubscribeCustomers();
+      unsubscribeCustomers = null;
+    }
+    if (unsubscribeBookings) {
+      unsubscribeBookings();
+      unsubscribeBookings = null;
     }
   };
 }
+
+

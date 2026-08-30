@@ -436,6 +436,62 @@ export function exportBookingsToCSV(bookings, filenamePrefix = 'forex_cargo_sche
   showToast(`Exported ${bookings.length} schedule(s) to ${filename}`, 'success');
 }
 
+/**
+ * Export a list of customers to a CSV file and trigger download
+ */
+export function exportCustomersToCSV(customers, filenamePrefix = 'forex_cargo_customers') {
+  if (!customers || !customers.length) {
+    showToast('No customers to export.', 'warning');
+    return;
+  }
+
+  const headers = [
+    'Customer ID',
+    'Customer Name',
+    'Contact Number',
+    'Address',
+    'Created At',
+    'Last Updated At'
+  ];
+
+  const escapeCSV = (val) => {
+    if (val == null) return '""';
+    const str = String(val).replace(/"/g, '""');
+    return `"${str}"`;
+  };
+
+  const rows = customers.map(c => {
+    return [
+      escapeCSV(c.id || ''),
+      escapeCSV(c.name || ''),
+      escapeCSV(c.contactNumber || ''),
+      escapeCSV(c.address || ''),
+      escapeCSV(formatDateTime(c.createdAt)),
+      escapeCSV(formatDateTime(c.updatedAt))
+    ].join(',');
+  });
+
+  const csvContent = '\uFEFF' + [headers.map(h => `"${h}"`).join(','), ...rows].join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateStamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const filename = `${filenamePrefix}_${dateStamp}.csv`;
+
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showToast(`Exported ${customers.length} customer(s) to ${filename}`, 'success');
+}
+
 /** Build SVG icon string (inline, stroke-based) */
 export const icons = {
   dashboard: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
