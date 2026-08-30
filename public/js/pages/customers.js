@@ -244,7 +244,8 @@ export async function renderCustomers(container, appState) {
 
     // Build numbered page buttons
     let pageBtns = '';
-    const maxVisibleBtns = 5;
+    const isMobile = window.innerWidth <= 600;
+    const maxVisibleBtns = isMobile ? 3 : 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisibleBtns / 2));
     let endPage = Math.min(totalPages, startPage + maxVisibleBtns - 1);
     if (endPage - startPage + 1 < maxVisibleBtns) {
@@ -286,11 +287,11 @@ export async function renderCustomers(container, appState) {
           </div>
         </div>
         <nav class="pagination-nav" aria-label="Customer list pagination">
-          <button class="pagination-btn" id="cust-first-page" ${currentPage === 1 ? 'disabled' : ''} title="First Page">«</button>
+          <button class="pagination-btn pagination-btn-extreme" id="cust-first-page" ${currentPage === 1 ? 'disabled' : ''} title="First Page">«</button>
           <button class="pagination-btn" id="cust-prev-page" ${currentPage === 1 ? 'disabled' : ''} title="Previous Page">‹</button>
           ${pageBtns}
           <button class="pagination-btn" id="cust-next-page" ${currentPage === totalPages ? 'disabled' : ''} title="Next Page">›</button>
-          <button class="pagination-btn" id="cust-last-page" ${currentPage === totalPages ? 'disabled' : ''} title="Last Page">»</button>
+          <button class="pagination-btn pagination-btn-extreme" id="cust-last-page" ${currentPage === totalPages ? 'disabled' : ''} title="Last Page">»</button>
         </nav>
       </div>
     `;

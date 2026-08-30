@@ -1890,6 +1890,7 @@ tbody tr.row-status-pending:hover {
   font-size: 0.825rem;
   color: var(--text-secondary);
   font-weight: 500;
+  white-space: nowrap;
 }
 .pagination-size-select {
   display: flex;
@@ -1897,6 +1898,7 @@ tbody tr.row-status-pending:hover {
   gap: 6px;
   font-size: 0.825rem;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
 .pagination-select-control {
   background: var(--white);
@@ -1919,6 +1921,10 @@ tbody tr.row-status-pending:hover {
   align-items: center;
   gap: 4px;
   list-style: none;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0;
 }
 .pagination-btn {
   display: inline-flex;
@@ -1936,6 +1942,7 @@ tbody tr.row-status-pending:hover {
   cursor: pointer;
   transition: var(--transition);
   user-select: none;
+  flex-shrink: 0;
 }
 .pagination-btn:hover:not(:disabled) {
   background: var(--light-blue-50);
@@ -1959,11 +1966,12 @@ tbody tr.row-status-pending:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 28px;
+  min-width: 24px;
   height: 32px;
   font-size: 0.85rem;
   color: var(--text-hint);
   user-select: none;
+  flex-shrink: 0;
 }
 @media (max-width: 600px) {
   .pagination-container {
@@ -1974,9 +1982,51 @@ tbody tr.row-status-pending:hover {
   }
   .pagination-left {
     justify-content: space-between;
+    gap: 8px;
   }
   .pagination-nav {
     justify-content: center;
+    gap: 3px;
+  }
+  .pagination-btn {
+    min-width: 28px;
+    height: 28px;
+    padding: 0 4px;
+    font-size: 0.775rem;
+  }
+  .pagination-ellipsis {
+    min-width: 16px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+  .pagination-btn-extreme {
+    display: none !important;
+  }
+}
+@media (max-width: 400px) {
+  .pagination-left {
+    gap: 4px;
+    font-size: 0.75rem;
+  }
+  .pagination-info {
+    font-size: 0.75rem;
+  }
+  .pagination-size-select {
+    font-size: 0.75rem;
+  }
+  .pagination-select-control {
+    padding: 2px 6px;
+    font-size: 0.75rem;
+  }
+  .pagination-btn {
+    min-width: 26px;
+    height: 26px;
+    font-size: 0.72rem;
+  }
+  .pagination-ellipsis {
+    min-width: 14px;
+    height: 26px;
+    font-size: 0.7rem;
   }
 }
 
