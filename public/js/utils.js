@@ -368,9 +368,9 @@ export const EXPORT_TEMPORARILY_LOCKED = true;
 export function checkExportAvailable() {
   if (!EXPORT_TEMPORARILY_LOCKED) return true;
 
-  // Super Admin bypass: allow super_admin to export records
-  const role = window._appState?.actualRole || window._appState?.user?.actualRole || window._appState?.user?.role;
-  if (role === 'super_admin') {
+  // Only allow export if active role is super_admin (supports View As full preview simulation)
+  const activeRole = window._appState?.user?.role;
+  if (activeRole === 'super_admin') {
     return true;
   }
 
