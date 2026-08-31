@@ -7,7 +7,6 @@
 import { showToast, showModal, icons, escapeHtml } from './utils.js';
 
 let deferredPrompt = null;
-let updateRegistration = null;
 let isPWAInitialized = false;
 
 /** Check if running in standalone installed mode */
@@ -46,19 +45,6 @@ export function initPWA() {
     window.addEventListener('load', async () => {
       try {
         const reg = await navigator.serviceWorker.register('/sw.js');
-        updateRegistration = reg;
-
-        // Check for updates on register
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          if (!newWorker) return;
-          newWorker.addEventListener('statechange', () => {
-            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New update available in background
-              showUpdateToast();
-            }
-          });
-        });
 
         // Periodic update check every 30 minutes
         setInterval(() => {
@@ -109,45 +95,6 @@ async function triggerDirectInstall() {
       console.warn('[PWA] prompt error:', err);
     }
   }
-}
-
-/** Gentle update notification toast */
-function showUpdateToast() {
-  const container = document.getElementById('toast-container');
-  if (!container) return;
-
-  const toast = document.createElement('div');
-  toast.className = 'toast toast-info toast-visible';
-  toast.style.cursor = 'pointer';
-  toast.style.background = '#0D47A1';
-  toast.innerHTML = `
-    <span class="toast-icon">✨</span>
-    <span class="toast-message" style="font-weight:500;">
-      A new app update is ready. <strong>Click to update now</strong>
-    </span>
-    <button class="toast-close" aria-label="Dismiss">✕</button>
-  `;
-
-  const remove = () => {
-    toast.classList.remove('toast-visible');
-    setTimeout(() => toast.remove(), 350);
-  };
-
-  toast.addEventListener('click', (e) => {
-    if (e.target.classList.contains('toast-close')) {
-      remove();
-      return;
-    }
-    if (updateRegistration && updateRegistration.waiting) {
-      updateRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-    } else {
-      window.location.reload();
-    }
-  });
-
-  container.appendChild(toast);
-  const t = setTimeout(remove, 3000);
-  toast.querySelector('.toast-close').addEventListener('click', () => clearTimeout(t));
 }
 
 /** Update the visibility and state of Download App buttons */
