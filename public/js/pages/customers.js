@@ -343,13 +343,15 @@ export async function renderCustomers(container, appState) {
   if (canExport) {
     document.getElementById('export-customers-csv-btn')?.addEventListener('click', async () => {
       const listToExport = filteredCustomers.length ? filteredCustomers : allCustomers;
-      exportCustomersToCSV(listToExport, 'forex_cargo_customers');
-      try {
-        await ActivityLog.write({
-          action: 'CUSTOMER_EXPORTED',
-          details: { count: listToExport.length }
-        });
-      } catch (_) {}
+      const success = exportCustomersToCSV(listToExport, 'forex_cargo_customers');
+      if (success) {
+        try {
+          await ActivityLog.write({
+            action: 'CUSTOMER_EXPORTED',
+            details: { count: listToExport.length }
+          });
+        } catch (_) {}
+      }
     });
   }
 

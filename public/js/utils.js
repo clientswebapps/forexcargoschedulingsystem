@@ -361,12 +361,49 @@ export function emptyStateHTML(title, subtitle = '', icon = '') {
 }
 
 /**
+ * Temporary lock for CSV export functionality
+ */
+export const EXPORT_TEMPORARILY_LOCKED = true;
+
+export function checkExportAvailable() {
+  if (!EXPORT_TEMPORARILY_LOCKED) return true;
+
+  // Super Admin bypass: allow super_admin to export records
+  const role = window._appState?.actualRole || window._appState?.user?.actualRole || window._appState?.user?.role;
+  if (role === 'super_admin') {
+    return true;
+  }
+
+  // Display pop up modal for client roles
+  showModal({
+    title: 'Export CSV',
+    body: `
+      <div style="text-align:center;padding:12px 8px;">
+        <div style="font-size:2.2rem;margin-bottom:12px;">📊</div>
+        <div style="font-weight:600;font-size:1.05rem;color:var(--text-primary);margin-bottom:6px;">
+          Exporting is not yet ready.
+        </div>
+        <p class="text-sm text-secondary" style="margin:0;">
+          Please try again later.
+        </p>
+      </div>
+    `,
+    confirmText: 'OK',
+    cancelText: null
+  });
+
+  return false;
+}
+
+/**
  * Export a list of schedules/bookings to a CSV file and trigger download
  */
 export function exportBookingsToCSV(bookings, filenamePrefix = 'forex_cargo_schedules') {
+  if (!checkExportAvailable()) return false;
+
   if (!bookings || !bookings.length) {
     showToast('No schedules to export.', 'warning');
-    return;
+    return false;
   }
 
   const headers = [
@@ -434,15 +471,18 @@ export function exportBookingsToCSV(bookings, filenamePrefix = 'forex_cargo_sche
   URL.revokeObjectURL(url);
 
   showToast(`Exported ${bookings.length} schedule(s) to ${filename}`, 'success');
+  return true;
 }
 
 /**
  * Export a list of customers to a CSV file and trigger download
  */
 export function exportCustomersToCSV(customers, filenamePrefix = 'forex_cargo_customers') {
+  if (!checkExportAvailable()) return false;
+
   if (!customers || !customers.length) {
     showToast('No customers to export.', 'warning');
-    return;
+    return false;
   }
 
   const headers = [
@@ -490,6 +530,7 @@ export function exportCustomersToCSV(customers, filenamePrefix = 'forex_cargo_cu
   URL.revokeObjectURL(url);
 
   showToast(`Exported ${customers.length} customer(s) to ${filename}`, 'success');
+  return true;
 }
 
 /** Build SVG icon string (inline, stroke-based) */
