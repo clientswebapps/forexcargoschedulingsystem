@@ -30,7 +30,7 @@ export function tsToInputValue(ts) {
   const d = ts && ts.toDate ? ts.toDate() : new Date(ts);
   if (isNaN(d)) return '';
   const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** Returns value for date <input> */
@@ -39,7 +39,7 @@ export function tsToDateInput(ts) {
   const d = ts && ts.toDate ? ts.toDate() : new Date(ts);
   if (isNaN(d)) return '';
   const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 /** Format time part of a Timestamp into a string (e.g. 10:00 AM) */
@@ -114,13 +114,13 @@ export function timeAgo(ts) {
 
 /** Today at midnight as a Firestore Timestamp */
 export function todayStart() {
-  const d = new Date(); d.setHours(0,0,0,0);
+  const d = new Date(); d.setHours(0, 0, 0, 0);
   return firebase.firestore.Timestamp.fromDate(d);
 }
 
 /** Tomorrow at midnight as a Firestore Timestamp */
 export function tomorrowStart() {
-  const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()+1);
+  const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1);
   return firebase.firestore.Timestamp.fromDate(d);
 }
 
@@ -272,29 +272,29 @@ export function closeModal() {
 
 export function statusBadge(status) {
   const map = {
-    'Pending':   '<span class="badge badge-warning">Pending</span>',
+    'Pending': '<span class="badge badge-warning">Pending</span>',
     'Completed': '<span class="badge badge-success">Completed</span>',
     'Cancelled': '<span class="badge badge-danger">Cancelled</span>',
-    'Others':    '<span class="badge badge-others">Others</span>',
+    'Others': '<span class="badge badge-others">Others</span>',
   };
   return map[status] || `<span class="badge badge-gray">${escapeHtml(status)}</span>`;
 }
 
 export function serviceBadge(type) {
   const map = {
-    'Pickup':   '<span class="badge badge-info">Pickup</span>',
+    'Pickup': '<span class="badge badge-info">Pickup</span>',
     'Delivery': '<span class="badge badge-purple">Delivery</span>',
-    'Custom':   '<span class="badge badge-gray">Custom</span>',
+    'Custom': '<span class="badge badge-gray">Custom</span>',
   };
   return map[type] || `<span class="badge badge-gray">${escapeHtml(type)}</span>`;
 }
 
 export function roleBadge(role) {
   const map = {
-    'super_admin':  '<span class="badge" style="background:#4A148C;color:#fff;">Super Admin</span>',
-    'admin':        '<span class="badge badge-navy">Admin</span>',
+    'super_admin': '<span class="badge" style="background:#4A148C;color:#fff;">Super Admin</span>',
+    'admin': '<span class="badge badge-navy">Admin</span>',
     'office_staff': '<span class="badge badge-info">Office Staff</span>',
-    'salesperson':  '<span class="badge badge-gray">Salesperson</span>',
+    'salesperson': '<span class="badge badge-gray">Salesperson</span>',
   };
   return map[role] || `<span class="badge badge-gray">${escapeHtml(role)}</span>`;
 }
@@ -363,7 +363,7 @@ export function emptyStateHTML(title, subtitle = '', icon = '') {
 /**
  * Temporary lock for CSV export functionality
  */
-export const EXPORT_TEMPORARILY_LOCKED = true;
+export const EXPORT_TEMPORARILY_LOCKED = false;
 
 export function checkExportAvailable() {
   if (!EXPORT_TEMPORARILY_LOCKED) return true;
