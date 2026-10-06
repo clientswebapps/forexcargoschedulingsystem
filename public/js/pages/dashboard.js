@@ -141,28 +141,15 @@ export async function renderDashboard(container, appState) {
       </div>
     </div>
 
-    <!-- Bottom Two Column Feed -->
-    <div class="dash-grid" id="dash-grid">
-      <div class="card" id="dash-upcoming-card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Today's Schedules</div>
-            <div class="card-subtitle">Real-time schedule list for today</div>
-          </div>
-          <a href="#" onclick="event.preventDefault();window._navigate && window._navigate('${role === 'salesperson' ? '/my-schedule' : '/schedules'}')" class="text-sm text-blue" style="font-weight:500;">View All</a>
+    <!-- Today's Schedules (full width) -->
+    <div class="card" id="dash-upcoming-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Today's Schedules</div>
+          <div class="card-subtitle">Real-time schedule list for today</div>
         </div>
-        <div id="dash-upcoming">${loadingHTML()}</div>
       </div>
-      <div class="card" id="dash-notif-card">
-        <div class="card-header">
-          <div>
-            <div class="card-title">Recent Notifications</div>
-            <div class="card-subtitle">Alerts and status updates</div>
-          </div>
-          <a href="#" onclick="event.preventDefault();window._navigate && window._navigate('/notifications')" class="text-sm text-blue" style="font-weight:500;">View All</a>
-        </div>
-        <div id="dash-notif">${loadingHTML()}</div>
-      </div>
+      <div id="dash-upcoming">${loadingHTML()}</div>
     </div>`;
 
   let unsubs = [];
@@ -330,6 +317,9 @@ export async function renderDashboard(container, appState) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           No schedules for today</div>`;
       } else {
+        const schedPage = role === 'salesperson' ? '/my-schedule' : '/schedules';
+        const displayed = allToday.slice(0, 10);
+        const hasMore = allToday.length > 10;
         upcomingEl.innerHTML = `
           <div class="table-wrapper" style="border-radius:0;border:none;box-shadow:none;">
             <table>
@@ -337,7 +327,7 @@ export async function renderDashboard(container, appState) {
                 <th>Time</th><th>Customer</th><th>Service</th><th>Salesperson</th><th>Status</th>
               </tr></thead>
               <tbody>
-                ${allToday.map(b => `
+                ${displayed.map(b => `
                   <tr class="clickable" data-id="${b.id}" onclick="window._navigate && window._navigate('/schedules/view/${b.id}')">
                     <td class="text-sm" style="font-weight:600;white-space:nowrap;">${formatBookingTime(b)}</td>
                     <td>
@@ -355,7 +345,13 @@ export async function renderDashboard(container, appState) {
                   </tr>`).join('')}
               </tbody>
             </table>
-          </div>`;
+          </div>
+          ${hasMore ? `
+          <div style="text-align:center;padding:12px 20px 16px;border-top:1px solid var(--border);">
+            <a href="#" onclick="event.preventDefault();window._navigate && window._navigate('${schedPage}')" class="text-sm text-blue" style="font-weight:500;">
+              View All Schedules (${allToday.length} total) &rarr;
+            </a>
+          </div>` : ''}`;
       }
     }
 
@@ -386,28 +382,7 @@ export async function renderDashboard(container, appState) {
     }
     refreshPending();
 
-    // 3. Real-time listener for notifications
-    const unsubNotif = Notifications.onSnapshot(uid, notifs => {
-      const notifEl = document.getElementById('dash-notif');
-      if (!notifEl) return;
-      const recent = notifs.slice(0, 6);
-      if (recent.length === 0) {
-        notifEl.innerHTML = `<div class="table-empty">No notifications yet</div>`;
-      } else {
-        notifEl.innerHTML = recent.map(n => `
-          <div class="notif-item ${n.read ? '' : 'unread'}" onclick="window._navigate && window._navigate('/notifications')">
-            <div class="notif-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </div>
-            <div class="notif-content">
-              <div class="notif-message">${escapeHtml(n.message)}</div>
-              <div class="notif-time">${timeAgo(n.createdAt)}</div>
-            </div>
-            ${!n.read ? '<div class="notif-dot"></div>' : ''}
-          </div>`).join('');
-      }
-    });
-    unsubs.push(unsubNotif);
+    // 3. Notifications panel removed — badge still handled globally by app.js refreshNotifBadge
 
     // 4. One-time fetch for statistics chart (with 30-minute session cache)
     (async () => {
