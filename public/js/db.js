@@ -11,6 +11,15 @@
 const db  = firebase.firestore();
 const auth = firebase.auth();
 
+// Enable IndexedDB offline persistence with multi-tab synchronization
+try {
+  db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+    if (err.code !== 'failed-precondition' && err.code !== 'unimplemented') {
+      console.warn('Firestore persistence notice:', err.message);
+    }
+  });
+} catch (_) {}
+
 /* ── Helpers ─────────────────────────────────────────────── */
 
 export const serverTs = () => firebase.firestore.FieldValue.serverTimestamp();
@@ -25,7 +34,22 @@ function collData(snap) {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+/** Normalize contact numbers for fast prefix queries */
+export function normalizePhone(rawPhone) {
+  if (!rawPhone) return { phoneClean: '', phoneLocal: '' };
+  const phoneClean = String(rawPhone).replace(/\D/g, '');
+  let phoneLocal = phoneClean;
+  if (phoneClean.startsWith('973') && phoneClean.length > 3) {
+    phoneLocal = phoneClean.substring(3);
+  }
+  return { phoneClean, phoneLocal };
+}
+
 /* ── USERS ───────────────────────────────────────────────── */
+
+let _usersCache = null;
+let _usersCacheTs = 0;
+const USER_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 export const Users = {
   col: () => db.collection('users'),
@@ -35,9 +59,19 @@ export const Users = {
     return docData(await db.collection('users').doc(uid).get());
   },
 
-  async getAll() {
+  async getAll(useCache = true) {
+    if (useCache && _usersCache && (Date.now() - _usersCacheTs < USER_CACHE_TTL)) {
+      return _usersCache;
+    }
     const snap = await db.collection('users').orderBy('displayName').get();
-    return collData(snap);
+    _usersCache = collData(snap);
+    _usersCacheTs = Date.now();
+    return _usersCache;
+  },
+
+  invalidateCache() {
+    _usersCache = null;
+    _usersCacheTs = 0;
   },
 
   async getByRole(role) {
@@ -46,17 +80,15 @@ export const Users = {
   },
 
   async getActiveSalespersons(includeInvisible = false) {
-    const snap = await db.collection('users')
-      .where('role', '==', 'salesperson')
-      .get();
-    return collData(snap)
-      .filter(u => u.isActive !== false && (includeInvisible || !u.isInvisible))
+    const all = await this.getAll(true);
+    return all
+      .filter(u => u.role === 'salesperson' && u.isActive !== false && (includeInvisible || !u.isInvisible))
       .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
   },
 
   async getActiveStaff(includeInvisible = false) {
-    const snap = await db.collection('users').get();
-    return collData(snap)
+    const all = await this.getAll(true);
+    return all
       .filter(u => u.isActive !== false && u.role !== 'super_admin' && (includeInvisible || !u.isInvisible))
       .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
   },
@@ -72,17 +104,24 @@ export const Users = {
       updatedAt:   serverTs(),
     };
     await db.collection('users').doc(uid).set(doc);
+    this.invalidateCache();
     return { id: uid, ...doc };
   },
 
   async update(uid, data) {
     const updates = { ...data, updatedAt: serverTs() };
     await db.collection('users').doc(uid).update(updates);
+    this.invalidateCache();
   },
 
   onSnapshot(callback, errorCallback) {
     return db.collection('users').orderBy('displayName').onSnapshot(
-      snap => callback(collData(snap)),
+      snap => {
+        const data = collData(snap);
+        _usersCache = data;
+        _usersCacheTs = Date.now();
+        callback(data);
+      },
       err => {
         if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
         console.error('Users onSnapshot error:', err);
@@ -94,6 +133,10 @@ export const Users = {
 
 /* ── CUSTOMERS ───────────────────────────────────────────── */
 
+let _customersCache = null;
+let _customersCacheTs = 0;
+const CUSTOMERS_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 export const Customers = {
   col: () => db.collection('customers'),
 
@@ -102,77 +145,146 @@ export const Customers = {
   },
 
   async getAll() {
-    const snap = await db.collection('customers').orderBy('name').get();
-    return collData(snap);
+    return this.getAllCached(false);
   },
 
-  /** Search by contact number (normalizes digits and country codes) */
+  async getAllCached(forceRefresh = false) {
+    if (!forceRefresh && _customersCache && (Date.now() - _customersCacheTs < CUSTOMERS_CACHE_TTL)) {
+      return _customersCache;
+    }
+    const snap = await db.collection('customers').orderBy('name').get();
+    _customersCache = collData(snap);
+    _customersCacheTs = Date.now();
+    return _customersCache;
+  },
+
+  invalidateCache() {
+    _customersCache = null;
+    _customersCacheTs = 0;
+  },
+
+  /** Paginated fetch of customers */
+  async getPaginated(limitCount = 50, startAfterDoc = null) {
+    let q = db.collection('customers').orderBy('name').limit(limitCount);
+    if (startAfterDoc) {
+      q = q.startAfter(startAfterDoc);
+    }
+    const snap = await q.get();
+    return {
+      docs: collData(snap),
+      lastDoc: snap.docs[snap.docs.length - 1] || null,
+      hasMore: snap.docs.length === limitCount,
+    };
+  },
+
+  /** Search by contact number (targeted prefix query & memory cache, capped at 8 reads) */
   async searchByPhone(phone) {
     if (!phone) return [];
-    const cleanSearch = phone.replace(/\D/g, '');
-    if (!cleanSearch) return [];
+    const { phoneClean, phoneLocal } = normalizePhone(phone);
+    if (!phoneLocal && !phoneClean) return [];
 
-    let searchLocal = cleanSearch;
-    if (cleanSearch.startsWith('973') && cleanSearch.length > 3) {
-      searchLocal = cleanSearch.substring(3);
+    // 1. If in-memory cache is populated and fresh, search locally (0 reads)
+    if (_customersCache && (Date.now() - _customersCacheTs < CUSTOMERS_CACHE_TTL)) {
+      return _customersCache.filter(c => {
+        const cLocal = c.phoneLocal || (c.contactNumber ? normalizePhone(c.contactNumber).phoneLocal : '');
+        const cClean = c.phoneClean || (c.contactNumber ? normalizePhone(c.contactNumber).phoneClean : '');
+        return (phoneLocal && cLocal.includes(phoneLocal)) || (phoneClean && cClean.includes(phoneClean));
+      }).slice(0, 8);
     }
 
-    const all = await this.getAll();
+    // 2. Direct Firestore query by phoneLocal prefix (max 8 reads)
+    if (phoneLocal) {
+      try {
+        const snap = await db.collection('customers')
+          .where('phoneLocal', '>=', phoneLocal)
+          .where('phoneLocal', '<=', phoneLocal + '\uf8ff')
+          .limit(8)
+          .get();
+        const results = collData(snap);
+        if (results.length > 0) return results;
+      } catch (_) {}
+    }
+
+    // 3. Fallback direct Firestore query by phoneClean prefix
+    if (phoneClean) {
+      try {
+        const snap = await db.collection('customers')
+          .where('phoneClean', '>=', phoneClean)
+          .where('phoneClean', '<=', phoneClean + '\uf8ff')
+          .limit(8)
+          .get();
+        const results = collData(snap);
+        if (results.length > 0) return results;
+      } catch (_) {}
+    }
+
+    // 4. Fallback for unmigrated legacy customer documents: fetch cache once and filter
+    const all = await this.getAllCached();
     return all.filter(c => {
-      if (!c.contactNumber) return false;
-      const cleanCust = c.contactNumber.replace(/\D/g, '');
-      let custLocal = cleanCust;
-      if (cleanCust.startsWith('973') && cleanCust.length > 3) {
-        custLocal = cleanCust.substring(3);
-      }
-      return custLocal.includes(searchLocal) || searchLocal.includes(custLocal);
+      const cLocal = c.phoneLocal || (c.contactNumber ? normalizePhone(c.contactNumber).phoneLocal : '');
+      const cClean = c.phoneClean || (c.contactNumber ? normalizePhone(c.contactNumber).phoneClean : '');
+      return (phoneLocal && cLocal.includes(phoneLocal)) || (phoneClean && cClean.includes(phoneClean));
     }).slice(0, 8);
   },
 
-  /** Search by name prefix */
+  /** Search by name prefix (max 8 reads) */
   async searchByName(name) {
     if (!name) return [];
-    const end = name + '\uf8ff';
+    const end = name.toLowerCase() + '\uf8ff';
     const snap = await db.collection('customers')
       .where('nameLower', '>=', name.toLowerCase())
-      .where('nameLower', '<=', name.toLowerCase() + '\uf8ff')
+      .where('nameLower', '<=', end)
       .limit(8)
       .get();
     return collData(snap);
   },
 
   async create(data) {
+    const { phoneClean, phoneLocal } = normalizePhone(data.contactNumber);
     const doc = {
       name:          data.name,
       nameLower:     data.name.toLowerCase(),
       contactNumber: data.contactNumber,
+      phoneClean,
+      phoneLocal,
       address:       data.address || '',
       createdBy:     currentUid(),
       createdAt:     serverTs(),
       updatedAt:     serverTs(),
     };
     const ref = await db.collection('customers').add(doc);
+    this.invalidateCache();
     return { id: ref.id, ...doc };
   },
 
   async update(id, data) {
+    const { phoneClean, phoneLocal } = normalizePhone(data.contactNumber);
     const updates = {
       name:          data.name,
       nameLower:     data.name.toLowerCase(),
       contactNumber: data.contactNumber,
+      phoneClean,
+      phoneLocal,
       address:       data.address || '',
       updatedAt:     serverTs(),
     };
     await db.collection('customers').doc(id).update(updates);
+    this.invalidateCache();
   },
 
   async delete(id) {
     await db.collection('customers').doc(id).delete();
+    this.invalidateCache();
   },
 
   onSnapshot(callback, errorCallback) {
     return db.collection('customers').orderBy('name').onSnapshot(
-      snap => callback(collData(snap)),
+      snap => {
+        const data = collData(snap);
+        _customersCache = data;
+        _customersCacheTs = Date.now();
+        callback(data);
+      },
       err => {
         if (!firebase.auth().currentUser || err?.code === 'permission-denied') return;
         console.error('Customers onSnapshot error:', err);
@@ -205,7 +317,7 @@ export const Bookings = {
   },
 
   /** Build Firestore query for all schedules (Admin/Office) with optional filters */
-  buildQuery(filters = {}) {
+  buildQuery(filters = {}, maxLimit = null) {
     let q = db.collection('bookings');
 
     if (filters.status)        q = q.where('status', '==', filters.status);
@@ -221,18 +333,26 @@ export const Bookings = {
       q = q.where('scheduledDate', '<=', parseLocalDate(filters.dateTo, true));
     }
 
-    return q.orderBy('scheduledDate', 'desc');
+    q = q.orderBy('scheduledDate', 'desc');
+
+    // Apply safety limit if specified or when querying across all dates
+    const effectiveLimit = maxLimit || (!filters.dateFrom && !filters.dateTo ? 150 : null);
+    if (effectiveLimit) {
+      q = q.limit(effectiveLimit);
+    }
+
+    return q;
   },
 
   /** Get all bookings (Admin/Office) with optional filters (one-time fetch) */
-  async getAll(filters = {}) {
-    const snap = await this.buildQuery(filters).get();
+  async getAll(filters = {}, maxLimit = null) {
+    const snap = await this.buildQuery(filters, maxLimit).get();
     return collData(snap);
   },
 
   /** Real-time listener for all schedules (Admin/Office) with optional filters */
-  onAllSnapshot(filters = {}, callback, errorCallback) {
-    const q = this.buildQuery(filters);
+  onAllSnapshot(filters = {}, callback, errorCallback, maxLimit = null) {
+    const q = this.buildQuery(filters, maxLimit);
     return q.onSnapshot(
       snap => callback(collData(snap)),
       err => {
@@ -244,7 +364,7 @@ export const Bookings = {
   },
 
   /** Build query for a specific salesperson's schedules */
-  buildMineQuery(salespersonId, filters = {}) {
+  buildMineQuery(salespersonId, filters = {}, maxLimit = null) {
     let q = db.collection('bookings').where('salespersonId', '==', salespersonId);
 
     if (filters.status) q = q.where('status', '==', filters.status);
@@ -257,18 +377,25 @@ export const Bookings = {
       q = q.where('scheduledDate', '<=', parseLocalDate(filters.dateTo, true));
     }
 
-    return q.orderBy('scheduledDate', 'desc');
+    q = q.orderBy('scheduledDate', 'desc');
+
+    const effectiveLimit = maxLimit || (!filters.dateFrom && !filters.dateTo ? 150 : null);
+    if (effectiveLimit) {
+      q = q.limit(effectiveLimit);
+    }
+
+    return q;
   },
 
   /** Get bookings for a specific salesperson (their schedule) (one-time fetch) */
-  async getMine(salespersonId, filters = {}) {
-    const snap = await this.buildMineQuery(salespersonId, filters).get();
+  async getMine(salespersonId, filters = {}, maxLimit = null) {
+    const snap = await this.buildMineQuery(salespersonId, filters, maxLimit).get();
     return collData(snap);
   },
 
   /** Real-time listener for a salesperson's schedules */
-  onMineSnapshot(salespersonId, filters = {}, callback, errorCallback) {
-    const q = this.buildMineQuery(salespersonId, filters);
+  onMineSnapshot(salespersonId, filters = {}, callback, errorCallback, maxLimit = null) {
+    const q = this.buildMineQuery(salespersonId, filters, maxLimit);
     return q.onSnapshot(
       snap => callback(collData(snap)),
       err => {
@@ -277,6 +404,25 @@ export const Bookings = {
         if (errorCallback) errorCallback(err);
       }
     );
+  },
+
+  /** Get count of pending bookings using Firestore count() aggregation (1 read per 1000 index items) */
+  async getPendingCount(salespersonId = null) {
+    try {
+      let q = db.collection('bookings').where('status', '==', 'Pending');
+      if (salespersonId) {
+        q = q.where('salespersonId', '==', salespersonId);
+      }
+      if (typeof q.count === 'function') {
+        const snap = await q.count().get();
+        return snap.data().count;
+      }
+      const snap = await q.get();
+      return snap.size;
+    } catch (e) {
+      console.warn('Pending count error:', e);
+      return 0;
+    }
   },
 
   async create(data) {

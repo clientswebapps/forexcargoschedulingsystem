@@ -31,24 +31,18 @@ export async function renderUsers(container, appState) {
     </div>`;
 
   let allUsers = [];
-  let unsubscribe = null;
 
-  function load() {
-    if (unsubscribe) {
-      unsubscribe();
-      unsubscribe = null;
-    }
+  async function load(forceRefresh = false) {
     const tableEl = document.getElementById('users-table');
     if (tableEl && !allUsers.length) {
       tableEl.innerHTML = loadingHTML();
     }
     try {
-      unsubscribe = Users.onSnapshot((list) => {
-        const isSuper = appState.user.role === 'super_admin';
-        // Regular admins only see visible users and cannot see super_admin accounts or invisible test accounts
-        allUsers = isSuper ? list : list.filter(u => u.role !== 'super_admin' && !u.isInvisible);
-        applySearch();
-      });
+      const list = await Users.getAll(!forceRefresh);
+      const isSuper = appState.user.role === 'super_admin';
+      // Regular admins only see visible users and cannot see super_admin accounts or invisible test accounts
+      allUsers = isSuper ? list : list.filter(u => u.role !== 'super_admin' && !u.isInvisible);
+      applySearch();
     } catch (err) {
       if (tableEl) tableEl.innerHTML = errorHTML('Failed to load users.');
     }
@@ -146,7 +140,7 @@ export async function renderUsers(container, appState) {
           });
         } catch (_) {}
         showToast(`User ${action}d successfully.`, 'success');
-        load();
+        await load(true);
       }
     });
   };
@@ -242,18 +236,14 @@ export async function renderUsers(container, appState) {
           } catch (_) {}
           showToast('User created successfully.', 'success');
         }
+        await load(true);
       }
     });
   }
 
   load();
 
-  return () => {
-    if (unsubscribe) {
-      unsubscribe();
-      unsubscribe = null;
-    }
-  };
+  return () => {};
 }
 
 function avatarColor(role) {

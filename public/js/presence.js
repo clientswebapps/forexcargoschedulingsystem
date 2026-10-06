@@ -45,7 +45,7 @@ export function initPresence(uid) {
     }).catch(() => {});
   } catch (_) {}
 
-  // 2. Periodic heartbeat every 60 seconds
+  // 2. Periodic heartbeat every 3 minutes (calibrated to conserve Firestore writes)
   if (presenceInterval) clearInterval(presenceInterval);
   presenceInterval = setInterval(() => {
     if (!currentUid || !firebase.auth().currentUser) return;
@@ -56,26 +56,9 @@ export function initPresence(uid) {
         currentRoute: getRouteName(window.location.hash || '#/'),
       }).catch(() => {});
     } catch (_) {}
-  }, 60000);
+  }, 180000);
 
-  // 3. User interaction listener (debounced refresh)
-  let lastPing = Date.now();
-  const pingActivity = () => {
-    if (Date.now() - lastPing > 45000 && currentUid && firebase.auth().currentUser) {
-      lastPing = Date.now();
-      try {
-        Users.update(currentUid, {
-          isOnline: true,
-          lastActive: serverTs(),
-        }).catch(() => {});
-      } catch (_) {}
-    }
-  };
-  window.addEventListener('mousemove', pingActivity, { passive: true });
-  window.addEventListener('keydown', pingActivity, { passive: true });
-  window.addEventListener('touchstart', pingActivity, { passive: true });
-
-  // 4. Tab visibility change (active vs background)
+  // 3. Tab visibility change (active vs background)
   document.addEventListener('visibilitychange', () => {
     if (!currentUid || !firebase.auth().currentUser) return;
     try {
@@ -86,7 +69,7 @@ export function initPresence(uid) {
     } catch (_) {}
   });
 
-  // 5. Unload / Close Tab handler
+  // 4. Unload / Close Tab handler
   window.addEventListener('beforeunload', () => {
     if (currentUid && firebase.auth().currentUser) {
       try {
@@ -99,14 +82,21 @@ export function initPresence(uid) {
   });
 }
 
-/** Update the current active page in presence */
+let lastPresenceRoute = '';
+let lastPresenceRouteTs = 0;
+
+/** Update the current active page in presence (throttled to avoid rapid write spam) */
 export function updatePresenceRoute(hash) {
   if (!currentUid || !firebase.auth().currentUser) return;
+  const newRoute = getRouteName(hash);
+  if (newRoute === lastPresenceRoute && (Date.now() - lastPresenceRouteTs < 120000)) return;
+  lastPresenceRoute = newRoute;
+  lastPresenceRouteTs = Date.now();
   try {
     Users.update(currentUid, {
       isOnline: true,
       lastActive: serverTs(),
-      currentRoute: getRouteName(hash),
+      currentRoute: newRoute,
     }).catch(() => {});
   } catch (_) {}
 }
@@ -158,10 +148,10 @@ export function getPresenceStatus(user) {
   const diffMs = Date.now() - lastActive.getTime();
   const diffMins = Math.floor(diffMs / 60000);
 
-  if (user.isOnline !== false && diffMins < 3) {
+  if (user.isOnline !== false && diffMins < 5) {
     return { status: 'online', label: 'Online now', color: 'green', isOnline: true };
   }
-  if (diffMins < 15) {
+  if (diffMins < 20) {
     return { status: 'idle', label: `Idle (${diffMins}m ago)`, color: 'amber', isIdle: true };
   }
   

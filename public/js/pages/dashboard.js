@@ -186,7 +186,7 @@ export async function renderDashboard(container, appState) {
 
   try {
     let allToday = [];
-    let pendingAll = [];
+    let pendingCount = 0;
     let bookingsListForChart = [];
 
     function renderSpotlight() {
@@ -280,7 +280,7 @@ export async function renderDashboard(container, appState) {
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           </div>
           <div>
-            <div class="stat-value">${pendingAll.length}</div>
+            <div class="stat-value">${pendingCount}</div>
             <div class="stat-label">Pending Schedules</div>
             <div class="text-xs text-secondary mt-1" style="color:var(--orange);font-weight:500;">View backlog &rarr;</div>
           </div>
@@ -366,26 +366,25 @@ export async function renderDashboard(container, appState) {
           renderStats();
           renderSpotlight();
           renderUpcoming();
+          refreshPending();
         })
       : Bookings.onAllSnapshot({ dateFrom: todayDateStr, dateTo: todayDateStr }, records => {
           allToday = records;
           renderStats();
           renderSpotlight();
           renderUpcoming();
+          refreshPending();
         });
     unsubs.push(unsubToday);
 
-    // 2. Real-time listener for Pending schedules count
-    const unsubPending = role === 'salesperson'
-      ? Bookings.onMineSnapshot(uid, { status: 'Pending' }, records => {
-          pendingAll = records;
-          renderStats();
-        })
-      : Bookings.onAllSnapshot({ status: 'Pending' }, records => {
-          pendingAll = records;
-          renderStats();
-        });
-    unsubs.push(unsubPending);
+    // 2. Fetch pending count using server aggregation (1 read instead of streaming all documents)
+    async function refreshPending() {
+      try {
+        pendingCount = await Bookings.getPendingCount(role === 'salesperson' ? uid : null);
+        renderStats();
+      } catch (_) {}
+    }
+    refreshPending();
 
     // 3. Real-time listener for notifications
     const unsubNotif = Notifications.onSnapshot(uid, notifs => {
@@ -410,18 +409,42 @@ export async function renderDashboard(container, appState) {
     });
     unsubs.push(unsubNotif);
 
-    // 4. One-time fetch for statistics chart
+    // 4. One-time fetch for statistics chart (with 30-minute session cache)
     (async () => {
       try {
-        const chartStartDate = new Date();
-        chartStartDate.setMonth(chartStartDate.getMonth() - 6);
-        chartStartDate.setHours(0,0,0,0);
-        const dateFromStr = `${chartStartDate.getFullYear()}-${padNum(chartStartDate.getMonth() + 1)}-${padNum(chartStartDate.getDate())}`;
+        const cacheKey = `dash_chart_${role}_${uid || 'all'}`;
+        let cachedChart = null;
+        try {
+          const raw = sessionStorage.getItem(cacheKey);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Date.now() - parsed.ts < 30 * 60 * 1000) {
+              cachedChart = parsed.data;
+            }
+          }
+        } catch (_) {}
 
-        if (role === 'salesperson') {
-          bookingsListForChart = await Bookings.getMine(uid, { dateFrom: dateFromStr });
+        if (cachedChart) {
+          bookingsListForChart = cachedChart;
         } else {
-          bookingsListForChart = await Bookings.getAll({ dateFrom: dateFromStr });
+          const chartStartDate = new Date();
+          chartStartDate.setMonth(chartStartDate.getMonth() - 6);
+          chartStartDate.setHours(0,0,0,0);
+          const dateFromStr = `${chartStartDate.getFullYear()}-${padNum(chartStartDate.getMonth() + 1)}-${padNum(chartStartDate.getDate())}`;
+
+          if (role === 'salesperson') {
+            bookingsListForChart = await Bookings.getMine(uid, { dateFrom: dateFromStr });
+          } else {
+            bookingsListForChart = await Bookings.getAll({ dateFrom: dateFromStr });
+          }
+
+          try {
+            const serialized = bookingsListForChart.map(b => ({
+              serviceType: b.serviceType,
+              scheduledDate: b.scheduledDate?.toDate ? b.scheduledDate.toDate().toISOString() : b.scheduledDate
+            }));
+            sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: serialized }));
+          } catch (_) {}
         }
 
         // Daily (last 7 days)

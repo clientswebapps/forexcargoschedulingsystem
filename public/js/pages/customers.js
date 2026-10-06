@@ -51,8 +51,6 @@ export async function renderCustomers(container, appState) {
   let filteredCustomers = [];
   let currentPage = 1;
   let pageSize = 10;
-  let unsubscribeCustomers = null;
-  let unsubscribeBookings  = null;
 
   function computeScopedCustomers() {
     if (!isSales) {
@@ -87,35 +85,26 @@ export async function renderCustomers(container, appState) {
     });
   }
 
-  function load() {
-    if (unsubscribeCustomers) {
-      unsubscribeCustomers();
-      unsubscribeCustomers = null;
-    }
-    if (unsubscribeBookings) {
-      unsubscribeBookings();
-      unsubscribeBookings = null;
-    }
-
+  async function load(forceRefresh = false) {
     const tableEl = document.getElementById('customers-table');
     if (tableEl && !allCustomers.length) {
       tableEl.innerHTML = loadingHTML();
     }
 
     try {
-      unsubscribeCustomers = Customers.onSnapshot((list) => {
-        allRawCustomers = list;
-        computeScopedCustomers();
-        updateView();
-      });
+      allRawCustomers = await Customers.getAllCached(forceRefresh);
 
       if (isSales && uid) {
-        unsubscribeBookings = Bookings.onMineSnapshot(uid, {}, (mineList) => {
-          salespersonBookings = mineList;
-          computeScopedCustomers();
-          updateView();
-        });
+        // Query recent bookings (last 90 days, capped at 100) instead of all history
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+        const pad = n => String(n).padStart(2, '0');
+        const ymd = `${ninetyDaysAgo.getFullYear()}-${pad(ninetyDaysAgo.getMonth() + 1)}-${pad(ninetyDaysAgo.getDate())}`;
+        salespersonBookings = await Bookings.getMine(uid, { dateFrom: ymd }, 100);
       }
+
+      computeScopedCustomers();
+      updateView();
     } catch (err) {
       if (tableEl) tableEl.innerHTML = errorHTML('Failed to load customers.');
     }
@@ -386,6 +375,7 @@ export async function renderCustomers(container, appState) {
           });
         } catch (_) {}
         showToast(`Customer "${c.name}" deleted.`, 'success');
+        await load(true);
       }
     });
   };
@@ -440,22 +430,14 @@ export async function renderCustomers(container, appState) {
           } catch (_) {}
           showToast('Customer added.', 'success');
         }
+        await load(true);
       }
     });
   }
 
   load();
 
-  return () => {
-    if (unsubscribeCustomers) {
-      unsubscribeCustomers();
-      unsubscribeCustomers = null;
-    }
-    if (unsubscribeBookings) {
-      unsubscribeBookings();
-      unsubscribeBookings = null;
-    }
-  };
+  return () => {};
 }
 
 
